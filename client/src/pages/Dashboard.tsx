@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Filter, Sparkles } from "lucide-react";
+import { Search, Plus, Filter, Sparkles, FileText } from "lucide-react";
 import { useDocuments } from "@/hooks/use-documents";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
