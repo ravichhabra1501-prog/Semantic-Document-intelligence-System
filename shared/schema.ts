@@ -1,18 +1,52 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+// === TABLE DEFINITIONS ===
+export const documents = pgTable("documents", {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  content: text("content"), // Extracted text
+  summary: text("summary"),
+  classification: text("classification"),
+  status: text("status").notNull().default("pending"), // pending, processing, completed, failed
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const entities = pgTable("entities", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull(),
+  entityType: text("entity_type").notNull(),
+  value: text("value").notNull(),
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+// === RELATIONS ===
+export const documentsRelations = relations(documents, ({ many }) => ({
+  entities: many(entities),
+}));
+
+export const entitiesRelations = relations(entities, ({ one }) => ({
+  document: one(documents, {
+    fields: [entities.documentId],
+    references: [documents.id],
+  }),
+}));
+
+// === BASE SCHEMAS ===
+export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true });
+export const insertEntitySchema = createInsertSchema(entities).omit({ id: true });
+
+// === EXPLICIT API CONTRACT TYPES ===
+export type Document = typeof documents.$inferSelect;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+export type Entity = typeof entities.$inferSelect;
+export type InsertEntity = z.infer<typeof insertEntitySchema>;
+
+export type DocumentWithEntities = Document & {
+  entities: Entity[];
+};
