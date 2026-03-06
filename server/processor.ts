@@ -1,6 +1,8 @@
 import { storage } from "./storage";
 import OpenAI from "openai";
-import * as pdfParse from "pdf-parse";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 import mammoth from "mammoth";
 import { z } from "zod";
 
