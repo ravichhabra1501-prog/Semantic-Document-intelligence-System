@@ -63,7 +63,7 @@ Respond ONLY with a JSON object in this exact format:
 `;
 
     const aiResponse = await openai.chat.completions.create({
-      model: "gpt-5.1",
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
     });
