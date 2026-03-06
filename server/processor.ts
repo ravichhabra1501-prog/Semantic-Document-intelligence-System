@@ -31,23 +31,6 @@ export async function processDocument(id: number, buffer: Buffer, mimeType: stri
       content = result.value;
     } else if (mimeType === "text/plain") {
       content = buffer.toString("utf8");
-    } else if (mimeType.startsWith("image/")) {
-      // In a real production system, use a dedicated OCR service (e.g., Tesseract, AWS Textract)
-      // Here we will use gpt-4o as a fallback for OCR to fulfill the "images with OCR" requirement
-      const base64Image = buffer.toString("base64");
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: "Extract all text from this image exactly as it appears. Return only the extracted text." },
-          {
-            role: "user",
-            content: [
-              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}` } }
-            ]
-          }
-        ]
-      });
-      content = response.choices[0]?.message.content || "";
     } else {
       throw new Error("Unsupported document format");
     }

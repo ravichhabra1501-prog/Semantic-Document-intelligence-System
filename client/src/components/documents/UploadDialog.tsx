@@ -34,8 +34,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
     accept: {
       'application/pdf': ['.pdf'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'text/plain': ['.txt'],
-      'image/*': ['.png', '.jpg', '.jpeg']
+      'text/plain': ['.txt']
     }
   });
 
@@ -78,7 +77,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
               Upload Document
             </DialogTitle>
             <DialogDescription className="text-muted-foreground pt-1">
-              Supported formats: PDF, DOCX, TXT, Images. Our AI will automatically extract entities and summarize.
+              Supported formats: PDF, DOCX, TXT. Our AI will automatically extract entities and summarize.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -100,7 +99,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
                 <p className="font-semibold text-foreground mb-1">
                   {isDragActive ? "Drop file here" : "Drag & drop file here"}
                 </p>
-                <p className="text-sm text-muted-foreground">or click to browse from your computer</p>
+                <p className="text-sm text-muted-foreground">PDF, DOCX, or TXT (Max 10MB)</p>
               </div>
             </div>
           ) : (
