@@ -2,7 +2,7 @@ import { storage } from "./storage";
 import OpenAI from "openai";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+const pdfParse = require("pdf-parse").default || require("pdf-parse");
 import mammoth from "mammoth";
 import { z } from "zod";
 
@@ -26,8 +26,13 @@ export async function processDocument(id: number, buffer: Buffer, mimeType: stri
     
     // 1. Extract text based on format
     if (mimeType === "application/pdf") {
-      const data = await pdfParse(buffer);
-      content = data.text;
+      try {
+        const data = await pdfParse(buffer);
+        content = data.text || "";
+      } catch (pdfError) {
+        console.error("PDF parsing error:", pdfError);
+        throw new Error(`Failed to extract text from PDF: ${pdfError instanceof Error ? pdfError.message : "Unknown error"}`);
+      }
     } else if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
       const result = await mammoth.extractRawText({ buffer });
       content = result.value;
