@@ -44,6 +44,30 @@ export async function processDocument(id: number, buffer: Buffer, mimeType: stri
       content = result.value;
     } else if (mimeType === "text/plain") {
       content = buffer.toString("utf8");
+    } else if (mimeType.startsWith("image/")) {
+      // Use vision API for images
+      const base64Image = buffer.toString("base64");
+      const visionResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${base64Image}`,
+                },
+              },
+              {
+                type: "text",
+                text: "Extract all text from this image. Return only the text content, nothing else.",
+              },
+            ],
+          },
+        ],
+      });
+      content = visionResponse.choices[0]?.message.content || "";
     } else {
       throw new Error("Unsupported document format");
     }
@@ -61,7 +85,7 @@ Analyze the following document text and provide:
 3. Key entities extracted from the text (Persons, Organizations, Locations, Dates, Other).
 
 Document Text:
-${content.substring(0, 8000)} // Limiting length to avoid token limits for very large docs
+${content.substring(0, 8000)}
 
 Respond ONLY with a JSON object in this exact format:
 {
