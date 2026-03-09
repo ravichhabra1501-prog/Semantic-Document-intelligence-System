@@ -1,10 +1,11 @@
 import { storage } from "./storage";
 import OpenAI from "openai";
 import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse").default || require("pdf-parse");
 import mammoth from "mammoth";
 import { z } from "zod";
+
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse/lib/pdf-parse.js");
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -18,6 +19,17 @@ const entitiesSchema = z.object({
   }))
 });
 
+// Extract text from PDF
+async function extractTextFromPDF(buffer: Buffer): Promise<string> {
+  try {
+    const data = await pdfParse(buffer);
+    return (data.text || "").trim();
+  } catch (error) {
+    console.error("PDF extraction error:", error);
+    throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+}
+
 export async function processDocument(id: number, buffer: Buffer, mimeType: string, filename: string) {
   try {
     await storage.updateDocument(id, { status: "processing" });
@@ -26,13 +38,7 @@ export async function processDocument(id: number, buffer: Buffer, mimeType: stri
     
     // 1. Extract text based on format
     if (mimeType === "application/pdf") {
-      try {
-        const data = await pdfParse(buffer);
-        content = data.text || "";
-      } catch (pdfError) {
-        console.error("PDF parsing error:", pdfError);
-        throw new Error(`Failed to extract text from PDF: ${pdfError instanceof Error ? pdfError.message : "Unknown error"}`);
-      }
+      content = await extractTextFromPDF(buffer);
     } else if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
       const result = await mammoth.extractRawText({ buffer });
       content = result.value;
