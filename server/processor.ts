@@ -5,10 +5,14 @@ import mammoth from "mammoth";
 import { z } from "zod";
 
 const require = createRequire(import.meta.url);
-// The pdf-parse package is a CJS module that exports the function directly.
-// In ESM with tsx/node, we often need to access it via .default if it's wrapped.
+
+// Load pdf-parse module - it's a CommonJS module
 const pdfParseModule = require("pdf-parse");
-const pdfParse = typeof pdfParseModule === 'function' ? pdfParseModule : (pdfParseModule.default || pdfParseModule);
+// The module exports the parse function, sometimes as .default
+let pdfParse: any = pdfParseModule;
+if (typeof pdfParseModule !== 'function' && typeof pdfParseModule.default === 'function') {
+  pdfParse = pdfParseModule.default;
+}
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -25,13 +29,41 @@ const entitiesSchema = z.object({
 // Extract text from PDF using pdf-parse
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
-    if (typeof pdfParse !== 'function') {
-      console.error("pdfParse is not a function. Type:", typeof pdfParse);
-      throw new Error("PDF parsing library not correctly loaded");
+    // Try to use pdf-parse - handle it if it's not loaded correctly
+    if (typeof pdfParse === 'function') {
+      const data = await pdfParse(buffer);
+      return (data.text || "").trim();
+    } else {
+      // Fallback: use Vision API to extract text from PDF
+      console.warn("PDF parsing library not available, using Vision API fallback");
+      const base64Pdf = buffer.toString("base64");
+      
+      // Use GPT-4o's vision to read the PDF
+      const visionResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Extract all text content from this PDF document. Return the complete extracted text.",
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:application/pdf;base64,${base64Pdf}`,
+                  detail: "high",
+                },
+              },
+            ],
+          },
+        ],
+      });
+      
+      const extractedText = visionResponse.choices[0]?.message.content || "";
+      return extractedText.trim();
     }
-
-    const data = await pdfParse(buffer);
-    return (data.text || "").trim();
   } catch (error) {
     console.error("PDF extraction error:", error);
     throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
