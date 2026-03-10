@@ -19,10 +19,15 @@ const entitiesSchema = z.object({
   }))
 });
 
-// Extract text from PDF
+// Extract text from PDF using pdf-parse
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
-    const data = await pdfParse(buffer);
+    // pdf-parse is a commonjs module, we need to handle its default export
+    const parse = typeof pdfParse === 'function' ? pdfParse : pdfParse.default;
+    if (typeof parse !== 'function') {
+      throw new Error("pdf-parse is not a function after import");
+    }
+    const data = await parse(buffer);
     return (data.text || "").trim();
   } catch (error) {
     console.error("PDF extraction error:", error);
@@ -108,11 +113,14 @@ Respond ONLY with a JSON object in this exact format:
 
     const analysis = JSON.parse(resultText);
 
+    // Ensure classification is never null/empty
+    const classification = (analysis.classification || "Unclassified").trim() || "Unclassified";
+
     // 3. Update document with content, summary, classification
     await storage.updateDocument(id, {
       content,
       summary: analysis.summary,
-      classification: analysis.classification,
+      classification,
       status: "completed"
     });
 
