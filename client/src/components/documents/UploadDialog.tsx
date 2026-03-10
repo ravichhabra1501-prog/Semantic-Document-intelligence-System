@@ -43,8 +43,8 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
     try {
       await uploadDoc.mutateAsync(file);
       toast({
-        title: "Document Uploaded",
-        description: `${file.name} has been queued for AI processing.`,
+        title: "Success",
+        description: `${file.name} has been processed by AI.`,
       });
       setFile(null);
       onOpenChange(false);

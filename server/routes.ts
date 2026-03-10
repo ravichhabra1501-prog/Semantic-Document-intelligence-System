@@ -59,17 +59,20 @@ export async function registerRoutes(
         status: "pending",
       });
 
-      // Process in background
-      processDocument(doc.id, file.buffer, file.mimetype, file.originalname)
-        .catch(err => {
-          console.error(`Failed to process document ${doc.id}:`, err);
-          storage.updateDocument(doc.id, { 
-            status: "failed", 
-            error: err instanceof Error ? err.message : String(err) 
-          }).catch(console.error);
+      // Process immediately (removing the background queue as requested)
+      try {
+        await processDocument(doc.id, file.buffer, file.mimetype, file.originalname);
+        // Fetch the updated document to return to the client
+        const updatedDoc = await storage.getDocument(doc.id);
+        res.status(201).json(updatedDoc || doc);
+      } catch (err) {
+        console.error(`Failed to process document ${doc.id}:`, err);
+        const failedDoc = await storage.updateDocument(doc.id, { 
+          status: "failed", 
+          error: err instanceof Error ? err.message : String(err) 
         });
-
-      res.status(201).json(doc);
+        res.status(201).json(failedDoc);
+      }
     } catch (err) {
       console.error("Upload error:", err);
       res.status(500).json({ message: "Failed to upload document" });

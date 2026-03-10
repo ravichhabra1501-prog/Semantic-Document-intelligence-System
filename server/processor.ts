@@ -5,7 +5,10 @@ import mammoth from "mammoth";
 import { z } from "zod";
 
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+// The pdf-parse package is a CJS module that exports the function directly.
+// In ESM with tsx/node, we often need to access it via .default if it's wrapped.
+const pdfParseModule = require("pdf-parse");
+const pdfParse = typeof pdfParseModule === 'function' ? pdfParseModule : (pdfParseModule.default || pdfParseModule);
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -22,12 +25,12 @@ const entitiesSchema = z.object({
 // Extract text from PDF using pdf-parse
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
-    // pdf-parse is a commonjs module, we need to handle its default export
-    const parse = typeof pdfParse === 'function' ? pdfParse : pdfParse.default;
-    if (typeof parse !== 'function') {
-      throw new Error("pdf-parse is not a function after import");
+    if (typeof pdfParse !== 'function') {
+      console.error("pdfParse is not a function. Type:", typeof pdfParse);
+      throw new Error("PDF parsing library not correctly loaded");
     }
-    const data = await parse(buffer);
+
+    const data = await pdfParse(buffer);
     return (data.text || "").trim();
   } catch (error) {
     console.error("PDF extraction error:", error);
