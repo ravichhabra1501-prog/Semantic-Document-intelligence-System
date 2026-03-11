@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertDocumentSchema, insertEntitySchema, documents, entities } from './schema';
+import { insertDocumentSchema, insertEntitySchema, insertTagSchema, documents, entities, tags } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -30,7 +30,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/documents/:id' as const,
       responses: {
-        200: z.custom<typeof documents.$inferSelect & { entities: typeof entities.$inferSelect[] }>(),
+        200: z.custom<typeof documents.$inferSelect & { entities: typeof entities.$inferSelect[]; tags: typeof tags.$inferSelect[] }>(),
         404: errorSchemas.notFound,
       },
     },
@@ -46,6 +46,25 @@ export const api = {
     delete: {
       method: 'DELETE' as const,
       path: '/api/documents/:id' as const,
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  tags: {
+    create: {
+      method: 'POST' as const,
+      path: '/api/documents/:id/tags' as const,
+      input: insertTagSchema,
+      responses: {
+        201: z.custom<typeof tags.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/tags/:tagId' as const,
       responses: {
         204: z.void(),
         404: errorSchemas.notFound,

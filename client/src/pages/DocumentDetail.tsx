@@ -1,4 +1,4 @@
-import { Link, useParams } from "wouter";
+import { Link, useParams, useLocation } from "wouter";
 import { format } from "date-fns";
 import { 
   ArrowLeft, 
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TagManager } from "@/components/documents/TagManager";
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -226,6 +227,22 @@ export default function DocumentDetail() {
                   </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Tags Manager */}
+          <Card className="border-border/50 shadow-sm">
+            <CardHeader className="pb-4 border-b border-border/50 bg-secondary/30">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Tag className="w-5 h-5 text-blue-500" />
+                Organization Tags
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5">
+              <TagManager 
+                documentId={document.id}
+                tags={document.tags || []}
+              />
             </CardContent>
           </Card>
         </div>

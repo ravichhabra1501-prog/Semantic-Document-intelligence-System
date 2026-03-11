@@ -25,9 +25,18 @@ export const entities = pgTable("entities", {
   value: text("value").notNull(),
 });
 
+export const tags = pgTable("tags", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull(),
+  name: text("name").notNull(),
+  color: text("color").default("gray"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === RELATIONS ===
 export const documentsRelations = relations(documents, ({ many }) => ({
   entities: many(entities),
+  tags: many(tags),
 }));
 
 export const entitiesRelations = relations(entities, ({ one }) => ({
@@ -37,16 +46,27 @@ export const entitiesRelations = relations(entities, ({ one }) => ({
   }),
 }));
 
+export const tagsRelations = relations(tags, ({ one }) => ({
+  document: one(documents, {
+    fields: [tags.documentId],
+    references: [documents.id],
+  }),
+}));
+
 // === BASE SCHEMAS ===
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true });
 export const insertEntitySchema = createInsertSchema(entities).omit({ id: true });
+export const insertTagSchema = createInsertSchema(tags).omit({ id: true, createdAt: true });
 
 // === EXPLICIT API CONTRACT TYPES ===
 export type Document = typeof documents.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Entity = typeof entities.$inferSelect;
 export type InsertEntity = z.infer<typeof insertEntitySchema>;
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = z.infer<typeof insertTagSchema>;
 
 export type DocumentWithEntities = Document & {
   entities: Entity[];
+  tags?: Tag[];
 };

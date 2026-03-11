@@ -98,5 +98,51 @@ export async function registerRoutes(
     }
   });
 
+  // Tag endpoints
+  app.post(api.tags.create.path, async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      const doc = await storage.getDocument(documentId);
+      if (!doc) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      const { name, color } = req.body;
+      if (!name || typeof name !== 'string') {
+        return res.status(400).json({ message: "Tag name is required" });
+      }
+
+      const tag = await storage.createTag({
+        documentId,
+        name: name.trim(),
+        color: color || "gray",
+      });
+
+      res.status(201).json(tag);
+    } catch (err) {
+      console.error("Tag creation error:", err);
+      res.status(500).json({ message: "Failed to create tag" });
+    }
+  });
+
+  app.delete(api.tags.delete.path, async (req, res) => {
+    try {
+      const tagId = parseInt(req.params.tagId);
+      if (isNaN(tagId)) {
+        return res.status(400).json({ message: "Invalid tag ID" });
+      }
+
+      await storage.deleteTag(tagId);
+      res.status(204).end();
+    } catch (err) {
+      console.error("Tag deletion error:", err);
+      res.status(500).json({ message: "Failed to delete tag" });
+    }
+  });
+
   return httpServer;
 }

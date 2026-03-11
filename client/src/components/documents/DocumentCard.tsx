@@ -8,7 +8,8 @@ import {
   AlertCircle,
   MoreVertical,
   Trash2,
-  Cpu
+  Cpu,
+  Tag as TagIcon
 } from "lucide-react";
 import { type DocumentResponse } from "@shared/routes";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -23,7 +24,7 @@ import {
 import { useDeleteDocument } from "@/hooks/use-documents";
 
 interface DocumentCardProps {
-  document: DocumentResponse;
+  document: DocumentResponse & { tags?: Array<{ id: number; name: string; color: string }> };
 }
 
 export function DocumentCard({ document }: DocumentCardProps) {
@@ -94,16 +95,31 @@ export function DocumentCard({ document }: DocumentCardProps) {
           )}
         </CardContent>
 
-        <CardFooter className="p-5 pt-0 flex items-center justify-between border-t border-border/40 bg-muted/10 mt-auto">
-          <div className="flex items-center gap-2 mt-4">
+        <CardFooter className="p-5 pt-0 flex flex-col gap-3 border-t border-border/40 bg-muted/10 mt-auto">
+          <div className="flex items-center justify-between w-full">
             <Badge variant="outline" className="bg-background capitalize text-[10px] tracking-wide font-semibold px-2 py-0.5">
               {document.classification || "Unclassified"}
             </Badge>
+            <div className="flex items-center gap-1.5" title={`Status: ${document.status}`}>
+              {getStatusIcon()}
+              <span className="text-xs font-medium capitalize text-muted-foreground">{document.status}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 mt-4" title={`Status: ${document.status}`}>
-            {getStatusIcon()}
-            <span className="text-xs font-medium capitalize text-muted-foreground">{document.status}</span>
-          </div>
+          {document.tags && document.tags.length > 0 && (
+            <div className="flex gap-1 flex-wrap">
+              {document.tags.slice(0, 3).map(tag => (
+                <Badge key={tag.id} variant="secondary" className="text-[10px] px-1.5 py-0.5 flex items-center gap-0.5">
+                  <TagIcon className="w-2.5 h-2.5" />
+                  {tag.name}
+                </Badge>
+              ))}
+              {document.tags.length > 3 && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                  +{document.tags.length - 3}
+                </Badge>
+              )}
+            </div>
+          )}
         </CardFooter>
       </Card>
     </Link>
