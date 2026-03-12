@@ -2,11 +2,9 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Settings as SettingsIcon, Moon, Sun, Monitor, Palette, Database,
-  FileText, Info, Trash2, Download, CheckCircle, BrainCircuit,
-  Shield, Bell, Sliders
+  Info, CheckCircle, BrainCircuit, Bell
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -108,23 +106,6 @@ export default function Settings() {
     setNotifications(val);
     localStorage.setItem("notifications", String(val));
     toast({ title: "Preference saved", description: `Upload notifications ${val ? "enabled" : "disabled"}.` });
-  };
-
-  const handleExportData = async () => {
-    try {
-      const res = await fetch("/api/documents");
-      const documents = await res.json();
-      const blob = new Blob([JSON.stringify(documents, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `nexusai-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast({ title: "Export complete", description: "All document data has been downloaded." });
-    } catch {
-      toast({ variant: "destructive", title: "Export failed", description: "Could not export data." });
-    }
   };
 
   const SUPPORTED_TYPES = [
@@ -240,21 +221,6 @@ export default function Settings() {
                 <p className="text-[10px] text-muted-foreground">Tags</p>
               </div>
             </div>
-          </SettingRow>
-          <SettingRow
-            label="Export all data"
-            description="Download all your document metadata as JSON"
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportData}
-              data-testid="button-export-data"
-              className="gap-2 border-border/50 hover:bg-secondary transition-smooth"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export JSON
-            </Button>
           </SettingRow>
         </SectionCard>
 
