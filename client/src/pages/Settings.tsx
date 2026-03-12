@@ -186,7 +186,7 @@ export default function Settings() {
             <Badge variant="secondary" className="font-mono text-xs">gpt-4o</Badge>
           </SettingRow>
           <SettingRow label="Text extraction limit" description="Maximum characters sent to AI per document">
-            <Badge variant="secondary" className="font-mono text-xs">8,000 chars</Badge>
+            <Badge variant="secondary" className="font-mono text-xs">10,000 chars</Badge>
           </SettingRow>
           <SettingRow label="Supported file types" description="Formats accepted for upload and processing">
             <div className="flex flex-wrap gap-1.5 max-w-[200px] justify-end">

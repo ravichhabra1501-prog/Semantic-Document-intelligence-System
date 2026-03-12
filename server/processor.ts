@@ -127,7 +127,7 @@ Analyze the following document text and provide:
 3. Key entities extracted from the text (Persons, Organizations, Locations, Dates, Other).
 
 Document Text:
-${content.substring(0, 8000)}
+${content.substring(0, 10000)}
 
 Respond ONLY with a JSON object in this exact format:
 {
