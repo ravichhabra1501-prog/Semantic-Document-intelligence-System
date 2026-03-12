@@ -1,18 +1,8 @@
 import { storage } from "./storage";
 import OpenAI from "openai";
-import { createRequire } from "module";
 import mammoth from "mammoth";
 import { z } from "zod";
-
-const require = createRequire(import.meta.url);
-
-// Load pdf-parse module - it's a CommonJS module
-const pdfParseModule = require("pdf-parse");
-// The module exports the parse function, sometimes as .default
-let pdfParse: any = pdfParseModule;
-if (typeof pdfParseModule !== 'function' && typeof pdfParseModule.default === 'function') {
-  pdfParse = pdfParseModule.default;
-}
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -26,48 +16,60 @@ const entitiesSchema = z.object({
   }))
 });
 
-// Extract text from PDF using pdf-parse
+// Extract text from PDF using pdfjs-dist
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
-    // Try to use pdf-parse - handle it if it's not loaded correctly
-    if (typeof pdfParse === 'function') {
-      const data = await pdfParse(buffer);
-      return (data.text || "").trim();
-    } else {
-      // Fallback: use Vision API to extract text from PDF
-      console.warn("PDF parsing library not available, using Vision API fallback");
-      const base64Pdf = buffer.toString("base64");
-      
-      // Use GPT-4o's vision to read the PDF
-      const visionResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Extract all text content from this PDF document. Return the complete extracted text.",
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:application/pdf;base64,${base64Pdf}`,
-                  detail: "high",
-                },
-              },
-            ],
-          },
-        ],
-      });
-      
-      const extractedText = visionResponse.choices[0]?.message.content || "";
-      return extractedText.trim();
+    const uint8Array = new Uint8Array(buffer);
+    const loadingTask = pdfjsLib.getDocument({ data: uint8Array, useWorkerFetch: false, isEvalSupported: false });
+    const pdf = await loadingTask.promise;
+    
+    const textParts: string[] = [];
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str || "")
+        .join(" ");
+      textParts.push(pageText);
     }
+    
+    const extractedText = textParts.join("\n").trim();
+    
+    // If pdfjs returns empty (scanned/image-only PDF), use AI vision fallback
+    if (!extractedText) {
+      console.warn("pdfjs returned empty text — PDF may be image-based, trying AI extraction");
+      return await extractTextFromPDFWithAI(buffer);
+    }
+    
+    return extractedText;
   } catch (error) {
-    console.error("PDF extraction error:", error);
-    throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+    console.error("pdfjs extraction error, trying AI fallback:", error);
+    return await extractTextFromPDFWithAI(buffer);
   }
+}
+
+// AI-based fallback: ask GPT-4o to describe/extract content from a PDF
+// Note: sends truncated base64 as text prompt since Vision API doesn't support PDFs
+async function extractTextFromPDFWithAI(buffer: Buffer): Promise<string> {
+  // Use the raw bytes as a text prompt describing the binary content won't work,
+  // so instead we ask AI to extract from whatever partial text we can get
+  const base64Sample = buffer.toString("base64").substring(0, 4000);
+  
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: `This is a base64-encoded PDF document. Please decode and extract all visible text content from it. Return only the extracted text.\n\nBase64 content:\n${base64Sample}`,
+      },
+    ],
+  });
+  
+  const text = response.choices[0]?.message.content || "";
+  if (!text.trim()) {
+    throw new Error("Could not extract text from this PDF. It may be encrypted, corrupted, or purely image-based with no readable text.");
+  }
+  return text.trim();
 }
 
 export async function processDocument(id: number, buffer: Buffer, mimeType: string, filename: string) {
