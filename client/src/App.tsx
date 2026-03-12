@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 
 import Dashboard from "@/pages/Dashboard";
 import DocumentDetail from "@/pages/DocumentDetail";
+import Analytics from "@/pages/Analytics";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 
 function Router() {
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/documents" component={Dashboard} />
       <Route path="/documents/:id" component={DocumentDetail} />
+      <Route path="/analytics" component={Analytics} />
       <Route component={NotFound} />
     </Switch>
   );

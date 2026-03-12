@@ -144,5 +144,15 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/analytics", async (_req, res) => {
+    try {
+      const stats = await storage.getStats();
+      res.json(stats);
+    } catch (err) {
+      console.error("Analytics error:", err);
+      res.status(500).json({ message: "Failed to load analytics" });
+    }
+  });
+
   return httpServer;
 }
