@@ -110,6 +110,66 @@
 }
 
 @layer utilities {
+  /* Animations */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in-down {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s ease-out;
+  }
+
+  .animate-fade-in-down {
+    animation: fade-in-down 0.5s ease-out;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+    background: linear-gradient(90deg, var(--card), var(--muted), var(--card));
+    background-size: 1000px 100%;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Elevation and Glass */
   .hover-elevate {
     position: relative;
     z-index: 0;
@@ -133,8 +193,31 @@
   .glass-panel {
     @apply bg-background/80 backdrop-blur-xl border border-border/50 shadow-sm;
   }
+
+  .glass-blur-md {
+    @apply bg-background/60 backdrop-blur-md border border-border/30;
+  }
   
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-violet-500;
+  }
+
+  /* Smooth transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  /* Shadow effects */
+  .shadow-elevation {
+    @apply shadow-lg;
+  }
+
+  .shadow-elevation-lg {
+    @apply shadow-xl;
+  }
+
+  /* Modern button styles */
+  .btn-modern {
+    @apply relative overflow-hidden rounded-lg transition-smooth group;
   }
 }

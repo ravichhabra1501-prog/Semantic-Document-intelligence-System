@@ -67,7 +67,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-card border-border/50 shadow-2xl rounded-2xl">
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-card border-border/50 shadow-2xl rounded-2xl animate-fade-in-up">
         <div className="px-6 pt-6 pb-4 border-b border-border/50 bg-muted/30">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
@@ -87,12 +87,12 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
             <div 
               {...getRootProps()} 
               className={`
-                border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center gap-4 text-center cursor-pointer transition-all duration-200
-                ${isDragActive ? "border-primary bg-primary/5 scale-[1.02]" : "border-border hover:border-primary/50 hover:bg-accent/50"}
+                border-2 border-dashed rounded-2xl p-12 flex flex-col items-center justify-center gap-4 text-center cursor-pointer transition-smooth shadow-sm
+                ${isDragActive ? "border-primary bg-gradient-to-br from-primary/10 to-primary/5 scale-[1.02]" : "border-border/50 hover:border-primary/50 hover:bg-accent/50"}
               `}
             >
               <input {...getInputProps()} />
-              <div className={`p-4 rounded-full ${isDragActive ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+              <div className={`p-4 rounded-full transition-smooth ${isDragActive ? 'bg-primary/20 text-primary scale-110' : 'bg-secondary text-muted-foreground'}`}>
                 <UploadCloud className="w-8 h-8" />
               </div>
               <div>
@@ -103,7 +103,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
               </div>
             </div>
           ) : (
-            <div className="bg-secondary/50 rounded-xl p-4 border border-border flex flex-col gap-4">
+            <div className="bg-secondary/50 rounded-2xl p-5 border border-border/50 flex flex-col gap-4 shadow-sm animate-fade-in-up">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="bg-background p-2 rounded-lg shadow-sm border border-border/50">

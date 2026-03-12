@@ -52,10 +52,10 @@ export function DocumentCard({ document }: DocumentCardProps) {
 
   return (
     <Link href={`/documents/${document.id}`} className="block group">
-      <Card className="h-full overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all duration-300 bg-card glass-panel group-hover:-translate-y-1">
+      <Card className="h-full overflow-hidden transition-smooth shadow-elevation hover:shadow-elevation-lg hover:border-primary/30 bg-card glass-panel group-hover:-translate-y-2 group-hover:scale-[1.02]">
         <CardHeader className="p-5 pb-3 flex flex-row items-start justify-between space-y-0">
           <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-xl ${isImage ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10' : 'bg-blue-50 text-blue-500 dark:bg-blue-500/10'} shadow-sm`}>
+            <div className={`p-3 rounded-xl transition-smooth group-hover:scale-110 ${isImage ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10 shadow-elevation' : 'bg-blue-50 text-blue-500 dark:bg-blue-500/10 shadow-elevation'}`}>
               <Icon className="w-6 h-6" />
             </div>
             <div className="flex flex-col overflow-hidden">
