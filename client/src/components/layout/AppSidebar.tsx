@@ -1,31 +1,35 @@
+import { useAuth } from "@/components/auth/AuthProvider";
+import { Button } from "@/components/ui/button";
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+} from "@/components/ui/sidebar";
+import { toast } from "@/hooks/use-toast";
+import {
+    clearDemoAuthState,
+    isSupabaseDemoMode,
+    supabase,
+} from "@/lib/supabase";
+import {
+    Activity,
+    ChevronRight,
+    FileText,
+    LayoutDashboard,
+    LoaderCircle,
+    LogOut,
+    PieChart,
+    Settings,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import {
-  Activity,
-  ChevronRight,
-  FileText,
-  LayoutDashboard,
-  LoaderCircle,
-  PieChart,
-  Settings,
-  LogOut,
-} from "lucide-react";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/components/auth/AuthProvider";
-import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
 
 export function AppSidebar() {
   const [location] = useLocation();
@@ -33,18 +37,54 @@ export function AppSidebar() {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard, caption: "Overview" },
-    { name: "All Documents", href: "/documents", icon: FileText, caption: "Library" },
-    { name: "Analytics", href: "/analytics", icon: PieChart, caption: "Signals" },
-    { name: "Settings", href: "/settings", icon: Settings, caption: "Preferences" },
+    {
+      name: "Dashboard",
+      href: "/",
+      icon: LayoutDashboard,
+      caption: "Overview",
+    },
+    {
+      name: "All Documents",
+      href: "/documents",
+      icon: FileText,
+      caption: "Library",
+    },
+    {
+      name: "Analytics",
+      href: "/analytics",
+      icon: PieChart,
+      caption: "Signals",
+    },
+    {
+      name: "Settings",
+      href: "/settings",
+      icon: Settings,
+      caption: "Preferences",
+    },
   ];
 
   const handleSignOut = async () => {
-    if (!supabase) {
+    setIsSigningOut(true);
+
+    if (isSupabaseDemoMode) {
+      clearDemoAuthState();
+      toast({
+        title: "Signed out",
+        description: "Demo session ended.",
+      });
+      setIsSigningOut(false);
       return;
     }
 
-    setIsSigningOut(true);
+    if (!supabase) {
+      toast({
+        title: "Unable to sign out",
+        description: "Authentication client is not configured.",
+        variant: "destructive",
+      });
+      setIsSigningOut(false);
+      return;
+    }
 
     const { error } = await supabase.auth.signOut({ scope: "local" });
 
@@ -53,6 +93,11 @@ export function AppSidebar() {
         title: "Unable to sign out",
         description: error.message,
         variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Signed out",
+        description: "You have been signed out successfully.",
       });
     }
 
@@ -65,7 +110,11 @@ export function AppSidebar() {
         <div className="mesh-panel panel-outline rounded-[1.75rem] p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 shadow-lg shadow-primary/20">
-              <img src="/logo.svg" alt="NexusAI logo" className="h-8 w-8 drop-shadow-sm" />
+              <img
+                src="/logo.svg"
+                alt="NexusAI logo"
+                className="h-8 w-8 drop-shadow-sm"
+              />
             </div>
             <div className="flex flex-col leading-tight">
               <span className="font-display text-lg font-semibold tracking-tight text-foreground">
@@ -110,7 +159,10 @@ export function AppSidebar() {
                           : "border-white/5 bg-white/[0.02] text-muted-foreground hover:border-white/10 hover:bg-white/[0.05] hover:text-foreground"
                       }`}
                     >
-                      <Link href={item.href} className="flex items-center gap-3">
+                      <Link
+                        href={item.href}
+                        className="flex items-center gap-3"
+                      >
                         <div
                           className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
                             isActive
@@ -152,7 +204,8 @@ export function AppSidebar() {
               Workspace Mode
             </p>
             <p className="mt-2 text-sm leading-6 text-foreground/85">
-              Built for reading dense documents fast, with AI workflows surfaced beside the raw text.
+              Built for reading dense documents fast, with AI workflows surfaced
+              beside the raw text.
             </p>
           </div>
         </div>

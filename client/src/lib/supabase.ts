@@ -24,11 +24,50 @@ export const supabaseConfigError = !supabaseUrl
       : null;
 
 export const isSupabaseConfigured = !supabaseConfigError;
-export const isSupabaseDemoMode = !supabaseUrl || !supabaseAnonKey;
+export const isSupabaseDemoMode = !isSupabaseConfigured;
+
+export const DEMO_AUTH_STORAGE_KEY = "demo-auth-email";
+export const DEMO_AUTH_EVENT = "demo-auth-changed";
 
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
+
+function dispatchDemoAuthChanged() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(DEMO_AUTH_EVENT));
+}
+
+export function getDemoAuthEmail() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const email = localStorage.getItem(DEMO_AUTH_STORAGE_KEY);
+
+  return email && email.trim() ? email : null;
+}
+
+export function setDemoAuthEmail(email: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.setItem(DEMO_AUTH_STORAGE_KEY, email);
+  dispatchDemoAuthChanged();
+}
+
+export function clearDemoAuthState() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem(DEMO_AUTH_STORAGE_KEY);
+  dispatchDemoAuthChanged();
+}
 
 export async function getSupabaseAccessToken() {
   if (!supabase) {

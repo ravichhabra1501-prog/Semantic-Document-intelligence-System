@@ -1,17 +1,23 @@
-import { useState } from "react";
-import { LoaderCircle, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { isSupabaseConfigured, supabase, supabaseConfigError } from "@/lib/supabase";
+import {
+    isSupabaseConfigured,
+    isSupabaseDemoMode,
+    setDemoAuthEmail,
+    supabase,
+    supabaseConfigError,
+} from "@/lib/supabase";
+import { LoaderCircle, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -25,6 +31,22 @@ export default function AuthPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    setIsSubmitting(true);
+
+    if (isSupabaseDemoMode) {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      setDemoAuthEmail(normalizedEmail || "demo@local");
+
+      toast({
+        title: "Welcome to Doc Intel",
+        description: "Demo mode is active. You are now signed in locally.",
+      });
+
+      setIsSubmitting(false);
+      return;
+    }
+
     if (!supabase) {
       toast({
         title: "Login is not configured",
@@ -33,10 +55,9 @@ export default function AuthPage() {
           "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in the project .env file.",
         variant: "destructive",
       });
+      setIsSubmitting(false);
       return;
     }
-
-    setIsSubmitting(true);
 
     try {
       if (mode === "sign-in") {
@@ -50,7 +71,7 @@ export default function AuthPage() {
         }
 
         toast({
-          title: "Signed in",
+          title: "Welcome to Doc Intel",
           description: "Your workspace is ready.",
         });
       } else {
@@ -69,7 +90,9 @@ export default function AuthPage() {
         const needsEmailConfirmation = !data.session;
 
         toast({
-          title: needsEmailConfirmation ? "Check your inbox" : "Account created",
+          title: needsEmailConfirmation
+            ? "Check your inbox"
+            : "Account created",
           description: needsEmailConfirmation
             ? "Supabase sent a confirmation email before the first sign-in."
             : "Your account was created and signed in.",
@@ -81,10 +104,13 @@ export default function AuthPage() {
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Something went wrong during authentication.";
+        error instanceof Error
+          ? error.message
+          : "Something went wrong during authentication.";
 
       toast({
-        title: mode === "sign-in" ? "Unable to sign in" : "Unable to create account",
+        title:
+          mode === "sign-in" ? "Unable to sign in" : "Unable to create account",
         description: message,
         variant: "destructive",
       });
@@ -109,36 +135,42 @@ export default function AuthPage() {
           <h1 className="mt-6 max-w-2xl text-4xl font-semibold leading-tight text-foreground lg:text-6xl">
             Protect document intelligence with
             <span className="bg-gradient-to-r from-primary via-cyan-300 to-amber-300 bg-clip-text text-transparent">
-              {" "}secure access
+              {" "}
+              secure access
             </span>
           </h1>
 
           <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground lg:text-base">
-            Sign in before entering the analysis workspace. Email and password flows
-            are handled through the app's secure login flow, while the existing app screens stay behind a
-            single authenticated shell.
+            Sign in before entering the analysis workspace. Email and password
+            flows are handled through the app's secure login flow, while the
+            existing app screens stay behind a single authenticated shell.
           </p>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
             {[
               {
                 title: "Session restore",
-                description: "Users stay signed in between refreshes with browser session persistence.",
+                description:
+                  "Users stay signed in between refreshes with browser session persistence.",
               },
               {
                 title: "Protected UI",
-                description: "Dashboard, analytics, settings, and document pages only render after auth.",
+                description:
+                  "Dashboard, analytics, settings, and document pages only render after auth.",
               },
               {
                 title: "VS Code friendly",
-                description: "Env-driven setup keeps the project easy to run locally from this workspace.",
+                description:
+                  "Env-driven setup keeps the project easy to run locally from this workspace.",
               },
             ].map((item) => (
               <div
                 key={item.title}
                 className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
               >
-                <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {item.title}
+                </p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {item.description}
                 </p>
@@ -153,7 +185,9 @@ export default function AuthPage() {
               <LockKeyhole className="h-5 w-5" />
             </div>
             <CardTitle>
-              {mode === "sign-in" ? "Sign in to Doc Intel" : "Create your account"}
+              {mode === "sign-in"
+                ? "Sign in to Doc Intel"
+                : "Create your account"}
             </CardTitle>
             <CardDescription>
               {mode === "sign-in"
@@ -176,7 +210,7 @@ export default function AuthPage() {
                     placeholder="you@example.com"
                     className="h-11 rounded-xl border-white/10 bg-black/20 pl-10"
                     required
-                    disabled={isSubmitting || !isSupabaseConfigured}
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -195,14 +229,14 @@ export default function AuthPage() {
                   className="h-11 rounded-xl border-white/10 bg-black/20"
                   minLength={6}
                   required
-                  disabled={isSubmitting || !isSupabaseConfigured}
+                  disabled={isSubmitting}
                 />
               </div>
 
               <Button
                 type="submit"
                 className="h-11 w-full rounded-xl font-semibold"
-                disabled={isSubmitting || !isSupabaseConfigured}
+                disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <>
@@ -221,7 +255,9 @@ export default function AuthPage() {
                 variant="ghost"
                 className="w-full rounded-xl text-muted-foreground hover:text-foreground"
                 onClick={() =>
-                  setMode((current) => (current === "sign-in" ? "sign-up" : "sign-in"))
+                  setMode((current) =>
+                    current === "sign-in" ? "sign-up" : "sign-in",
+                  )
                 }
                 disabled={isSubmitting}
               >
@@ -232,8 +268,10 @@ export default function AuthPage() {
 
               {!isSupabaseConfigured && (
                 <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
-                  {supabaseConfigError ??
-                    "Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the root `.env` file before using auth."}
+                  {isSupabaseDemoMode
+                    ? "Supabase is not fully configured, so demo sign-in is enabled locally. Update .env values to use real authentication."
+                    : (supabaseConfigError ??
+                      "Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the root `.env` file before using auth.")}
                 </div>
               )}
             </form>

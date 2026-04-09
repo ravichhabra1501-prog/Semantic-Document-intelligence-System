@@ -1,18 +1,41 @@
-import { useEffect, useState } from "react";
-import { LoaderCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { LoaderCircle, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+
+async function waitForAal2(maxAttempts = 6, delayMs = 400) {
+  if (!supabase) {
+    return false;
+  }
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const { error: refreshSessionError } = await supabase.auth.refreshSession();
+
+    if (!refreshSessionError) {
+      const { data: aalData, error: aalError } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+      if (!aalError && aalData.currentLevel === "aal2") {
+        return true;
+      }
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+  }
+
+  return false;
+}
 
 export default function AuthMfaPage() {
   const { refreshAuthState } = useAuth();
@@ -36,12 +59,16 @@ export default function AuthMfaPage() {
           throw error;
         }
 
-        const verifiedFactor = data.totp.find((factor) => factor.status === "verified");
+        const verifiedFactor = data.totp.find(
+          (factor) => factor.status === "verified",
+        );
         setFactorId(verifiedFactor?.id ?? null);
       })
       .catch((error) => {
         const message =
-          error instanceof Error ? error.message : "Unable to load your authenticator settings.";
+          error instanceof Error
+            ? error.message
+            : "Unable to load your authenticator settings.";
         setErrorMessage(message);
       })
       .finally(() => {
@@ -76,14 +103,27 @@ export default function AuthMfaPage() {
         throw verify.error;
       }
 
+      // Supabase may acknowledge OTP slightly before the elevated session is readable.
+      const hasAal2Session = await waitForAal2();
+
+      if (!hasAal2Session) {
+        throw new Error(
+          "MFA code was accepted, but your secure session did not finish updating. Please try again.",
+        );
+      }
+
       await refreshAuthState();
+      setCode("");
+      setErrorMessage(null);
       toast({
         title: "Verification complete",
         description: "Multi-factor authentication is active for this session.",
       });
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "The code could not be verified.";
+        error instanceof Error
+          ? error.message
+          : "The code could not be verified.";
       setErrorMessage(message);
       toast({
         title: "Verification failed",
@@ -108,7 +148,8 @@ export default function AuthMfaPage() {
           </div>
           <CardTitle>Verify your authenticator code</CardTitle>
           <CardDescription>
-            This workspace requires a second verification step before documents and analytics become available.
+            This workspace requires a second verification step before documents
+            and analytics become available.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -118,7 +159,9 @@ export default function AuthMfaPage() {
             </div>
           ) : !factorId ? (
             <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-5 text-sm leading-6 text-amber-100">
-              No verified authenticator app was found for this account. Open Settings after sign-in to enroll MFA, or check your Supabase auth setup.
+              No verified authenticator app was found for this account. Open
+              Settings after sign-in to enroll MFA, or check your Supabase auth
+              setup.
             </div>
           ) : (
             <form className="space-y-5" onSubmit={handleVerify}>
@@ -129,7 +172,9 @@ export default function AuthMfaPage() {
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   value={code}
-                  onChange={(event) => setCode(event.target.value.replace(/\s+/g, ""))}
+                  onChange={(event) =>
+                    setCode(event.target.value.replace(/\s+/g, ""))
+                  }
                   placeholder="123456"
                   className="h-11 rounded-xl border-white/10 bg-black/20"
                   minLength={6}

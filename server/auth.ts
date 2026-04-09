@@ -2,10 +2,27 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
-const isDemoMode = !supabaseUrl || !supabaseAnonKey;
+
+function isPlaceholderValue(value?: string) {
+  return !value || value.includes("<YOUR_") || value.includes("YOUR_SUPABASE");
+}
+
+function isLikelySupabasePublishableKey(value?: string) {
+  if (!value) {
+    return false;
+  }
+
+  return value.startsWith("sb_publishable_") || value.startsWith("eyJ");
+}
+
+const isSupabaseConfigured =
+  !!supabaseUrl &&
+  !isPlaceholderValue(supabaseAnonKey) &&
+  isLikelySupabasePublishableKey(supabaseAnonKey);
+const isDemoMode = !isSupabaseConfigured;
 
 const serverSupabase =
-  supabaseUrl && supabaseAnonKey
+  isSupabaseConfigured && supabaseAnonKey
     ? createClient(supabaseUrl, supabaseAnonKey, {
         auth: {
           autoRefreshToken: false,

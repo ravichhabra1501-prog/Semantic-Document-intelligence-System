@@ -1,4 +1,9 @@
-import { isSupabaseDemoMode, supabase } from "@/lib/supabase";
+import {
+    DEMO_AUTH_EVENT,
+    getDemoAuthEmail,
+    isSupabaseDemoMode,
+    supabase,
+} from "@/lib/supabase";
 import type { Session, User } from "@supabase/supabase-js";
 import {
     createContext,
@@ -20,14 +25,14 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function createDemoUser(): User {
+function createDemoUser(email: string): User {
   const now = new Date().toISOString();
 
   return {
     id: "demo-user",
     aud: "authenticated",
     role: "authenticated",
-    email: "demo@local",
+    email,
     email_confirmed_at: now,
     created_at: now,
     updated_at: now,
@@ -37,8 +42,8 @@ function createDemoUser(): User {
   } as User;
 }
 
-function createDemoSession(): Session {
-  const user = createDemoUser();
+function createDemoSession(email: string): Session {
+  const user = createDemoUser(email);
 
   return {
     access_token: "demo-access-token",
@@ -55,14 +60,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [requiresMfa, setRequiresMfa] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const demoSession = useMemo(
-    () => (isSupabaseDemoMode ? createDemoSession() : null),
-    [],
-  );
 
   const refreshAuthState = async () => {
     if (isSupabaseDemoMode) {
-      setSession(demoSession);
+      const email = getDemoAuthEmail();
+      setSession(email ? createDemoSession(email) : null);
       setCurrentAal(null);
       setRequiresMfa(false);
       setIsLoading(false);
@@ -115,9 +117,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (isSupabaseDemoMode) {
-      setSession(demoSession);
+      const email = getDemoAuthEmail();
+      setSession(email ? createDemoSession(email) : null);
       setIsLoading(false);
-      return;
+
+      const handleDemoAuthChanged = () => {
+        refreshAuthState().catch((error) => {
+          console.error("Failed to refresh demo auth state", error);
+          setIsLoading(false);
+        });
+      };
+
+      window.addEventListener(DEMO_AUTH_EVENT, handleDemoAuthChanged);
+
+      return () => {
+        window.removeEventListener(DEMO_AUTH_EVENT, handleDemoAuthChanged);
+      };
     }
 
     if (!supabase) {
