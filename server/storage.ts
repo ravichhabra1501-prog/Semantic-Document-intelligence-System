@@ -43,8 +43,8 @@ export interface IStorage {
 // In-memory storage implementation.
 // This removes the need for a database connection and lets the app run without configuring DATABASE_URL.
 
-function nowIso() {
-  return new Date().toISOString();
+function nowDate() {
+  return new Date();
 }
 
 export class InMemoryStorage implements IStorage {
@@ -82,8 +82,10 @@ export class InMemoryStorage implements IStorage {
 
   async getDocuments(query?: string): Promise<(Document & { tags?: Tag[] })[]> {
     const docs = this.applyQueryFilter(
-      [...this.documents].sort((a, b) =>
-        (a.createdAt || "").localeCompare(b.createdAt || ""),
+      [...this.documents].sort(
+        (a, b) =>
+          (a.createdAt ? new Date(a.createdAt).getTime() : 0) -
+          (b.createdAt ? new Date(b.createdAt).getTime() : 0),
       ),
     );
 
@@ -113,7 +115,7 @@ export class InMemoryStorage implements IStorage {
 
   async createDocument(doc: InsertDocument): Promise<Document> {
     const nextId = this.nextDocumentId++;
-    const now = nowIso();
+    const now = nowDate();
     const created: Document = {
       id: nextId,
       filename: doc.filename,
@@ -128,7 +130,7 @@ export class InMemoryStorage implements IStorage {
       status: doc.status ?? "pending",
       error: doc.error ?? null,
       createdAt: now,
-    } as Document;
+    } as unknown as Document;
 
     this.documents.push(created);
     return this.clone(created);
@@ -177,8 +179,8 @@ export class InMemoryStorage implements IStorage {
       documentId: tag.documentId,
       name: tag.name,
       color: tag.color ?? "gray",
-      createdAt: nowIso(),
-    } as Tag;
+      createdAt: nowDate(),
+    } as unknown as Tag;
 
     this.tags.push(created);
     return this.clone(created);

@@ -30,7 +30,7 @@ export async function setupVite(app: any) {
   app.use(vite.middlewares);
 
   // Serve index.html for any non-API GET request so client-side routing works
-  app.use(async (req, res, next) => {
+  app.use(async (req: any, res: any, next: any) => {
     if (req.method !== "GET" || (req.path && req.path.startsWith("/api"))) {
       return next();
     }

@@ -14,7 +14,7 @@ export function serveStatic(app: any) {
     root: distPath,
   });
 
-  app.setNotFoundHandler(async (req, res) => {
+  app.setNotFoundHandler(async (_req: any, res: any) => {
     return res.sendFile("index.html");
   });
 }

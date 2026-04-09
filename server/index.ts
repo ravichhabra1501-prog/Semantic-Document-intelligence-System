@@ -60,13 +60,36 @@ app.addHook("preHandler", (req, res, done) => {
   done();
 });
 
+function getErrorStatusAndMessage(err: unknown) {
+  if (typeof err === "object" && err !== null) {
+    const maybeStatus =
+      "statusCode" in err
+        ? (err as { statusCode?: unknown }).statusCode
+        : undefined;
+    const maybeMessage =
+      "message" in err ? (err as { message?: unknown }).message : undefined;
+
+    return {
+      status: typeof maybeStatus === "number" ? maybeStatus : 500,
+      message:
+        typeof maybeMessage === "string"
+          ? maybeMessage
+          : "Internal Server Error",
+    };
+  }
+
+  return {
+    status: 500,
+    message: "Internal Server Error",
+  };
+}
+
 (async () => {
   await app.register(fastifyExpress);
   await registerRoutes(app);
 
   app.setErrorHandler((err, _req, res) => {
-    const status = err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    const { status, message } = getErrorStatusAndMessage(err);
     console.error("Internal Server Error:", err);
     res.status(status).send({ message });
   });

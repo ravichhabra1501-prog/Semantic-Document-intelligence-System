@@ -4,7 +4,7 @@ import { processDocument } from "./processor";
 import { storage } from "./storage";
 
 export async function registerRoutes(app: any): Promise<void> {
-  app.get(api.documents.list.path, async (req, res) => {
+  app.get(api.documents.list.path, async (req: any, res: any) => {
     try {
       if (!(await requireAuthenticatedUser(req, res))) {
         return;
@@ -18,7 +18,7 @@ export async function registerRoutes(app: any): Promise<void> {
     }
   });
 
-  app.get(api.documents.get.path, async (req, res) => {
+  app.get(api.documents.get.path, async (req: any, res: any) => {
     try {
       if (!(await requireAuthenticatedUser(req, res))) {
         return;
@@ -40,7 +40,7 @@ export async function registerRoutes(app: any): Promise<void> {
     }
   });
 
-  app.post(api.documents.upload.path, async (req, res) => {
+  app.post(api.documents.upload.path, async (req: any, res: any) => {
     try {
       if (!(await requireAuthenticatedUser(req, res))) {
         return;
@@ -75,11 +75,7 @@ export async function registerRoutes(app: any): Promise<void> {
 
       // Process immediately (removing the background queue as requested)
       try {
-        await processDocument(
-          doc.id,
-          file.buffer,
-          file.mimetype,
-        );
+        await processDocument(doc.id, file.buffer, file.mimetype);
         // Fetch the updated document to return to the client
         const updatedDoc = await storage.getDocument(doc.id);
         res.status(201).send(updatedDoc || doc);
@@ -97,7 +93,7 @@ export async function registerRoutes(app: any): Promise<void> {
     }
   });
 
-  app.delete(api.documents.delete.path, async (req, res) => {
+  app.delete(api.documents.delete.path, async (req: any, res: any) => {
     try {
       if (!(await requireAuthenticatedUser(req, res))) {
         return;
@@ -121,7 +117,7 @@ export async function registerRoutes(app: any): Promise<void> {
   });
 
   // Tag endpoints
-  app.post(api.tags.create.path, async (req, res) => {
+  app.post(api.tags.create.path, async (req: any, res: any) => {
     try {
       if (!(await requireAuthenticatedUser(req, res))) {
         return;
@@ -155,7 +151,7 @@ export async function registerRoutes(app: any): Promise<void> {
     }
   });
 
-  app.delete(api.tags.delete.path, async (req, res) => {
+  app.delete(api.tags.delete.path, async (req: any, res: any) => {
     try {
       if (!(await requireAuthenticatedUser(req, res))) {
         return;
@@ -174,7 +170,7 @@ export async function registerRoutes(app: any): Promise<void> {
     }
   });
 
-  app.get("/api/analytics", async (_req, res) => {
+  app.get("/api/analytics", async (_req: any, res: any) => {
     try {
       if (!(await requireAuthenticatedUser(_req, res))) {
         return;
