@@ -1,3 +1,4 @@
+import fastifyCors from "@fastify/cors";
 import fastifyExpress from "@fastify/express";
 import fastifyFormbody from "@fastify/formbody";
 import fastifyMultipart from "@fastify/multipart";
@@ -9,6 +10,28 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 
 const app = fastify();
+
+const corsOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.register(fastifyCors, {
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    if (corsOrigins.length === 0 || corsOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error("Not allowed by CORS"), false);
+  },
+  credentials: true,
+});
 
 app.register(fastifyFormbody);
 app.register(fastifyMultipart, {

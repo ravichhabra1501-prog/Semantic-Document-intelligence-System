@@ -1,5 +1,6 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getApiCredentialsMode, resolveApiUrl } from "@/lib/api";
 import { getSupabaseAuthHeaders } from "@/lib/supabase";
+import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -14,14 +15,14 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const authHeaders = await getSupabaseAuthHeaders();
-  const res = await fetch(url, {
+  const res = await fetch(resolveApiUrl(url), {
     method,
     headers: {
       ...(data ? { "Content-Type": "application/json" } : {}),
       ...authHeaders,
     },
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: getApiCredentialsMode(),
   });
 
   await throwIfResNotOk(res);
@@ -35,9 +36,9 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const authHeaders = await getSupabaseAuthHeaders();
-    const res = await fetch(queryKey.join("/") as string, {
+    const res = await fetch(resolveApiUrl(queryKey.join("/") as string), {
       headers: authHeaders,
-      credentials: "include",
+      credentials: getApiCredentialsMode(),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
