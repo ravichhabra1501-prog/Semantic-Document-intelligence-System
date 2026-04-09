@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { MfaSettingsCard } from "@/components/auth/MfaSettingsCard";
 
 type Theme = "light" | "dark" | "system";
 
@@ -117,7 +118,7 @@ export default function Settings() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <header className="sticky top-0 z-10 glass-panel border-b border-border/50 px-6 lg:px-10 py-6 shadow-elevation animate-fade-in-down">
         <div className="space-y-1">
           <h1 className="text-3xl lg:text-4xl font-bold tracking-tight flex items-center gap-3">
@@ -180,6 +181,8 @@ export default function Settings() {
           </SettingRow>
         </SectionCard>
 
+        <MfaSettingsCard />
+
         {/* AI Processing */}
         <SectionCard icon={BrainCircuit} title="AI Processing" iconColor="text-violet-500">
           <SettingRow label="AI Model" description="Model used for document analysis, summarization, and entity extraction">
@@ -226,7 +229,7 @@ export default function Settings() {
 
         {/* About */}
         <SectionCard icon={Info} title="About" iconColor="text-emerald-500">
-          <SettingRow label="Application" description="Semantic Document Intelligence System">
+          <SettingRow label="Application" description="NexusAI">
             <Badge variant="secondary" className="text-xs">v1.0.0</Badge>
           </SettingRow>
           <SettingRow label="Stack" description="Powered by modern web technologies">
@@ -236,7 +239,7 @@ export default function Settings() {
               ))}
             </div>
           </SettingRow>
-          <SettingRow label="AI Integration" description="Connected to OpenAI via Replit AI Integrations">
+          <SettingRow label="AI Integration" description="Connected to OpenAI for document analysis">
             <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-medium">
               <CheckCircle className="w-3.5 h-3.5" />
               Connected

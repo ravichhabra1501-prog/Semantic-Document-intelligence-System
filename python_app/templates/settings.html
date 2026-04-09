@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero card" style="border-radius:22px;">
+    <div class="title-xl">Settings</div>
+    <div class="subtitle">Customize your workspace preferences and manage your data.</div>
+  </section>
+
+  <section class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); margin-top:18px;">
+    <div class="card">
+      <div class="section-title">Appearance</div>
+      <p class="muted">Theme: <span class="badge">{{ theme }}</span></p>
+      <p class="muted">Compact view: <span class="badge pill-muted">{{ "On" if compact_view else "Off" }}</span></p>
+    </div>
+    <div class="card">
+      <div class="section-title">Notifications</div>
+      <p class="muted">Uploads: <span class="badge pill-muted">{{ "Enabled" if notifications else "Disabled" }}</span></p>
+    </div>
+    <div class="card">
+      <div class="section-title">AI Processing</div>
+      <p class="muted">Model: <span class="badge">{{ ai_model }}</span></p>
+      <p class="muted">Text limit: <span class="badge pill-muted">{{ text_limit }}</span></p>
+      <p class="muted">Supported: {{ supported_types | join(", ") }}</p>
+    </div>
+    <div class="card">
+      <div class="section-title">Workspace Summary</div>
+      <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(120px,1fr));">
+        <div class="stat"><span class="muted">Docs</span><span class="value">{{ workspace_stats.totalDocuments }}</span></div>
+        <div class="stat"><span class="muted">Entities</span><span class="value">{{ workspace_stats.totalEntities }}</span></div>
+        <div class="stat"><span class="muted">Tags</span><span class="value">{{ workspace_stats.totalTags }}</span></div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

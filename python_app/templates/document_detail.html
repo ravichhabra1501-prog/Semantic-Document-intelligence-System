@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+  {% if document %}
+  <section class="hero card" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; border-radius:22px;">
+    <div>
+      <div class="title-xl">{{ document.originalName }}</div>
+      <div class="muted">{{ document.status }} &bull; {{ document.createdAt.strftime("%b %d, %Y %I:%M %p") }}</div>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <a href="/" class="btn ghost">Back</a>
+      <button class="btn" style="background:linear-gradient(145deg,#ef4444,#f97316);">Delete</button>
+    </div>
+  </section>
+
+  <section class="two-col" style="margin-top:18px;">
+    <div class="card">
+      <div class="section-title">AI Summary</div>
+      <p class="muted" style="line-height:1.6; color:var(--text);">{{ document.summary }}</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+        {% for tag in document.tags or [] %}
+          <span class="badge pill-muted">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">Metadata</div>
+      <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(160px,1fr));">
+        <div class="stat"><span class="muted">Status</span><span class="value">{{ document.status }}</span></div>
+        <div class="stat"><span class="muted">Class</span><span class="badge">{{ document.classification }}</span></div>
+        <div class="stat"><span class="muted">Size</span><span class="value">{{ '%.2f' | format(document.size/1024) }} KB</span></div>
+        <div class="stat"><span class="muted">Type</span><span class="value">{{ document.mimeType }}</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="two-col" style="margin-top:18px;">
+    <div class="card">
+      <div class="section-title">Extracted Text</div>
+      <pre style="white-space:pre-wrap; background:rgba(0,0,0,0.35); padding:14px; border-radius:12px; border:1px solid var(--border); color:#cbd5e1; margin:0; min-height:180px;">
+{{ document.content }}
+      </pre>
+    </div>
+    <div class="card">
+      <div class="section-title">Entities</div>
+      {% if grouped_entities %}
+        {% for etype, values in grouped_entities.items() %}
+          <div style="margin-bottom:10px;">
+            <div class="muted" style="text-transform:uppercase; letter-spacing:1px; font-size:11px;">{{ etype }}</div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;">
+              {% for val in values %}
+                <span class="badge pill-muted">{{ val }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="muted">No entities</div>
+      {% endif %}
+    </div>
+  </section>
+  {% else %}
+    {% include "not_found.html" %}
+  {% endif %}
+{% endblock %}

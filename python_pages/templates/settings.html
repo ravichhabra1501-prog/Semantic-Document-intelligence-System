@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1 class="text-3xl font-bold mb-6">Settings</h1>
+  <div class="card rounded-xl p-4">
+    <p class="text-sm text-slate-300 mb-4">Example settings form (non-functional).</p>
+    <form class="space-y-4">
+      <label class="block">
+        <span class="text-sm text-slate-200">Workspace name</span>
+        <input class="mt-1 w-full rounded bg-white/5 border border-white/10 px-3 py-2" placeholder="Nexus AI Workspace" />
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-200">Notification email</span>
+        <input class="mt-1 w-full rounded bg-white/5 border border-white/10 px-3 py-2" type="email" placeholder="you@example.com" />
+      </label>
+      <button class="px-4 py-2 rounded bg-blue-600 text-white text-sm" type="button">Save (mock)</button>
+    </form>
+  </div>
+{% endblock %}

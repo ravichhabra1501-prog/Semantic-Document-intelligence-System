@@ -1,28 +1,25 @@
-import express, { type Request, Response, NextFunction } from "express";
+import fastifyExpress from "@fastify/express";
+import fastifyFormbody from "@fastify/formbody";
+import fastifyMultipart from "@fastify/multipart";
+import "dotenv/config";
+import fastify from "fastify";
+import net from "node:net";
+
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
-import { createServer } from "http";
 
-const app = express();
-const httpServer = createServer(app);
+const app = fastify();
 
-declare module "http" {
-  interface IncomingMessage {
-    rawBody: unknown;
-  }
-}
+app.register(fastifyFormbody);
+app.register(fastifyMultipart, {
+  limits: {
+    // Allow up to 50MB files (PDFs, images)
+    fileSize: 50 * 1024 * 1024,
+    files: 1,
+  },
+});
 
-app.use(
-  express.json({
-    verify: (req, _res, buf) => {
-      req.rawBody = buf;
-    },
-  }),
-);
-
-app.use(express.urlencoded({ extended: false }));
-
-export function log(message: string, source = "express") {
+export function log(message: string, source = "fastify") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -33,46 +30,45 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-app.use((req, res, next) => {
+async function findAvailablePort(host: string): Promise<number> {
+  return await new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.on("error", reject);
+    srv.listen(0, host, () => {
+      const address = srv.address();
+      srv.close(() => {
+        if (typeof address === "object" && address?.port) {
+          resolve(address.port);
+        } else {
+          reject(new Error("Could not determine free port"));
+        }
+      });
+    });
+  });
+}
+
+app.addHook("preHandler", (req, res, done) => {
   const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
+  res.raw.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
+    if (req.url.startsWith("/api")) {
+      let logLine = `${req.method} ${req.url} ${res.statusCode} in ${duration}ms`;
       log(logLine);
     }
   });
-
-  next();
+  done();
 });
 
 (async () => {
-  await registerRoutes(httpServer, app);
+  await app.register(fastifyExpress);
+  await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
+  app.setErrorHandler((err, _req, res) => {
+    const status = err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     console.error("Internal Server Error:", err);
-
-    if (res.headersSent) {
-      return next(err);
-    }
-
-    return res.status(status).json({ message });
+    res.status(status).send({ message });
   });
 
   // importantly only setup vite in development and after
@@ -82,22 +78,38 @@ app.use((req, res, next) => {
     serveStatic(app);
   } else {
     const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
+    await setupVite(app);
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
+  const host = "0.0.0.0";
+  let port = parseInt(process.env.PORT || "5000", 10);
+  let attempts = 0;
+
+  while (attempts < 5) {
+    try {
+      await app.listen({ port, host });
+      log(`serving on http://localhost:${port}`);
+      return;
+    } catch (err: any) {
+      if (err?.code === "EADDRINUSE") {
+        log(`port ${port} busy, trying next port...`, "fastify");
+        port += 1;
+        attempts += 1;
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  // As a last resort (all preferred ports busy), ask the OS for any free port so dev server can still start.
+  const fallbackPort = await findAvailablePort(host);
+  await app.listen({ port: fallbackPort, host });
+  log(
+    `serving on http://localhost:${fallbackPort} (preferred ports 5000-5004 were busy)`,
+    "fastify",
   );
 })();

@@ -13,6 +13,8 @@ export const documents = pgTable("documents", {
   content: text("content"), // Extracted text
   summary: text("summary"),
   classification: text("classification"),
+  workflow: text("workflow"), // JSON string: { title, steps[] }
+  diagram: text("diagram"), // Mermaid flowchart text
   status: text("status").notNull().default("pending"), // pending, processing, completed, failed
   error: text("error"),
   createdAt: timestamp("created_at").defaultNow(),

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title or "NexusAI (Python)" }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='logo.svg') }}" type="image/svg+xml" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body { background: #0f172a; color: #e2e8f0; }
+      .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); }
+    </style>
+  </head>
+  <body class="min-h-screen">
+    <header class="flex items-center gap-3 px-6 py-4 border-b border-white/10 bg-white/5 backdrop-blur">
+      <img src="{{ url_for('static', filename='logo.svg') }}" alt="Logo" class="h-10 w-10" />
+      <div>
+        <p class="text-xl font-semibold">NexusAI</p>
+        <p class="text-sm text-slate-300">Python-rendered demo</p>
+      </div>
+      <nav class="ml-auto flex gap-4 text-sm">
+        <a class="hover:underline" href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a class="hover:underline" href="{{ url_for('analytics') }}">Analytics</a>
+        <a class="hover:underline" href="{{ url_for('settings') }}">Settings</a>
+      </nav>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-6 py-8">
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

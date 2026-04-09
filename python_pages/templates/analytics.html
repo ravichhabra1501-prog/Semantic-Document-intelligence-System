@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1 class="text-3xl font-bold mb-6">Analytics</h1>
+  <div class="grid sm:grid-cols-2 gap-4">
+    <div class="card rounded-xl p-4">
+      <p class="text-sm text-slate-300">Documents Indexed</p>
+      <p class="text-3xl font-bold">{{ stats.documents_indexed }}</p>
+    </div>
+    <div class="card rounded-xl p-4">
+      <p class="text-sm text-slate-300">Active Users</p>
+      <p class="text-3xl font-bold">{{ stats.active_users }}</p>
+    </div>
+    <div class="card rounded-xl p-4">
+      <p class="text-sm text-slate-300">Avg. Response (ms)</p>
+      <p class="text-3xl font-bold">{{ stats.avg_response_ms }}</p>
+    </div>
+    <div class="card rounded-xl p-4">
+      <p class="text-sm text-slate-300">Accuracy</p>
+      <p class="text-3xl font-bold">{{ (stats.accuracy * 100) | round(1) }}%</p>
+    </div>
+  </div>
+
+  <div class="card rounded-xl p-4 mt-6">
+    <p class="text-sm text-slate-300 mb-2">Trend (mock data)</p>
+    <div class="flex gap-2 items-end h-40">
+      {% set max_val = stats.trend | max %}
+      {% for val in stats.trend %}
+        <div class="w-8 bg-blue-500/60 rounded-t" style="height: {{ (val / max_val) * 100 }}%"></div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero card" style="border-radius:22px;">
+    <div class="title-xl">Analytics</div>
+    <div class="subtitle">Insights and statistics across your document workspace.</div>
+  </section>
+
+  <section class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); margin-top:18px;">
+    <div class="card stat"><div class="muted">Total Documents</div><div class="value">{{ totalDocuments }}</div></div>
+    <div class="card stat"><div class="muted">Entities Extracted</div><div class="value">{{ totalEntities }}</div></div>
+    <div class="card stat"><div class="muted">Tags Created</div><div class="value">{{ totalTags }}</div></div>
+    <div class="card">
+      <div class="section-title">Status Breakdown</div>
+      <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:10px;">
+        {% for s in byStatus %}
+          <div class="stat" style="background:rgba(255,255,255,0.05);">
+            <span class="muted">{{ s.status }}</span>
+            <span class="value">{{ s.count }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:18px;">
+    <div class="section-title">Recent Uploads (last 14 days)</div>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr));">
+      {% for r in recentUploads %}
+        <div class="stat">
+          <div class="muted">{{ r.date }}</div>
+          <div class="value">{{ r.count }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); margin-top:18px;">
+    <div class="card">
+      <div class="section-title">Document Types</div>
+      <ul style="padding-left:16px; margin:6px 0; line-height:1.6;">
+        {% for t in byType %}
+          <li>{{ t.type }} — {{ t.count }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="card">
+      <div class="section-title">Classifications</div>
+      <ul style="padding-left:16px; margin:6px 0; line-height:1.6;">
+        {% for c in byClassification %}
+          <li>{{ c.classification }} — {{ c.count }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="card">
+      <div class="section-title">Entity Types</div>
+      <ul style="padding-left:16px; margin:6px 0; line-height:1.6;">
+        {% for e in byEntityType %}
+          <li>{{ e.entityType }} — {{ e.count }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+{% endblock %}

@@ -1,16 +1,16 @@
-import { useState, useCallback } from "react";
-import { useDropzone } from "react-dropzone";
-import { UploadCloud, File, X, Loader2, CheckCircle2 } from "lucide-react";
-import { useUploadDocument } from "@/hooks/use-documents";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
+import { useUploadDocument } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
+import { CheckCircle2, File, Loader2, UploadCloud, X } from "lucide-react";
+import { useCallback, useState } from "react";
+import { useDropzone } from "react-dropzone";
 
 interface UploadDialogProps {
   open: boolean;
@@ -28,14 +28,19 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
     }
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     maxFiles: 1,
     accept: {
-      'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'text/plain': ['.txt']
-    }
+      "application/pdf": [".pdf"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        [".docx"],
+      "text/plain": [".txt"],
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/png": [".png"],
+      "image/bmp": [".bmp"],
+      "image/gif": [".gif"],
+    },
   });
 
   const handleUpload = async () => {
@@ -52,7 +57,8 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
       toast({
         variant: "destructive",
         title: "Upload Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+        description:
+          error instanceof Error ? error.message : "An unknown error occurred",
       });
     }
   };
@@ -77,29 +83,34 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
               Upload Document
             </DialogTitle>
             <DialogDescription className="text-muted-foreground pt-1">
-              Supported formats: PDF, DOCX, TXT. Our AI will automatically extract entities and summarize.
+              Supported formats: PDF, DOCX, TXT, PNG, JPG. Our AI will
+              extract text, build a workflow, and generate a diagram blueprint.
             </DialogDescription>
           </DialogHeader>
         </div>
 
         <div className="p-6">
           {!file ? (
-            <div 
-              {...getRootProps()} 
+            <div
+              {...getRootProps()}
               className={`
                 border-2 border-dashed rounded-2xl p-12 flex flex-col items-center justify-center gap-4 text-center cursor-pointer transition-smooth shadow-sm
                 ${isDragActive ? "border-primary bg-gradient-to-br from-primary/10 to-primary/5 scale-[1.02]" : "border-border/50 hover:border-primary/50 hover:bg-accent/50"}
               `}
             >
               <input {...getInputProps()} />
-              <div className={`p-4 rounded-full transition-smooth ${isDragActive ? 'bg-primary/20 text-primary scale-110' : 'bg-secondary text-muted-foreground'}`}>
+              <div
+                className={`p-4 rounded-full transition-smooth ${isDragActive ? "bg-primary/20 text-primary scale-110" : "bg-secondary text-muted-foreground"}`}
+              >
                 <UploadCloud className="w-8 h-8" />
               </div>
               <div>
                 <p className="font-semibold text-foreground mb-1">
                   {isDragActive ? "Drop file here" : "Drag & drop file here"}
                 </p>
-                <p className="text-sm text-muted-foreground">PDF, DOCX, or TXT (Max 10MB)</p>
+                <p className="text-sm text-muted-foreground">
+                  PDF, DOCX, TXT, PNG, or JPG (Max 10MB)
+                </p>
               </div>
             </div>
           ) : (
@@ -110,7 +121,10 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
                     <File className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm text-foreground truncate max-w-[200px]" title={file.name}>
+                    <p
+                      className="font-medium text-sm text-foreground truncate max-w-[200px]"
+                      title={file.name}
+                    >
                       {file.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -119,7 +133,12 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
                   </div>
                 </div>
                 {!uploadDoc.isPending && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setFile(null)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => setFile(null)}
+                  >
                     <X className="w-4 h-4" />
                   </Button>
                 )}
@@ -130,7 +149,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
                   {uploadDoc.error.message}
                 </div>
               )}
-              
+
               {uploadDoc.isSuccess && (
                 <div className="text-sm text-green-600 bg-green-50 p-3 rounded-lg border border-green-200 flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4" />
@@ -138,8 +157,8 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
                 </div>
               )}
 
-              <Button 
-                className="w-full font-semibold" 
+              <Button
+                className="w-full font-semibold"
                 size="lg"
                 onClick={handleUpload}
                 disabled={uploadDoc.isPending || uploadDoc.isSuccess}

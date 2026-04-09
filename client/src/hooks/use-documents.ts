@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type DocumentResponse, type DocumentDetailResponse } from "@shared/routes";
+import { getSupabaseAuthHeaders } from "@/lib/supabase";
 
 export function useDocuments(query?: string) {
   return useQuery({
@@ -7,8 +8,9 @@ export function useDocuments(query?: string) {
     queryFn: async () => {
       const url = new URL(api.documents.list.path, window.location.origin);
       if (query) url.searchParams.set("query", query);
+      const authHeaders = await getSupabaseAuthHeaders();
       
-      const res = await fetch(url.toString(), { credentials: "include" });
+      const res = await fetch(url.toString(), { credentials: "include", headers: authHeaders });
       if (!res.ok) throw new Error("Failed to fetch documents");
       
       const data = await res.json();
@@ -22,7 +24,8 @@ export function useDocument(id: number) {
     queryKey: [api.documents.get.path, id],
     queryFn: async () => {
       const url = buildUrl(api.documents.get.path, { id });
-      const res = await fetch(url, { credentials: "include" });
+      const authHeaders = await getSupabaseAuthHeaders();
+      const res = await fetch(url, { credentials: "include", headers: authHeaders });
       
       if (res.status === 404) return null;
       if (!res.ok) throw new Error("Failed to fetch document details");
@@ -43,10 +46,12 @@ export function useUploadDocument() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
+      const authHeaders = await getSupabaseAuthHeaders();
       
       const res = await fetch(api.documents.upload.path, {
         method: api.documents.upload.method,
         body: formData,
+        headers: authHeaders,
         credentials: "include",
       });
       
@@ -72,8 +77,10 @@ export function useDeleteDocument() {
   return useMutation({
     mutationFn: async (id: number) => {
       const url = buildUrl(api.documents.delete.path, { id });
+      const authHeaders = await getSupabaseAuthHeaders();
       const res = await fetch(url, {
         method: api.documents.delete.method,
+        headers: authHeaders,
         credentials: "include",
       });
       

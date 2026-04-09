@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="text-center py-16 card rounded-2xl">
+    <p class="text-5xl mb-4">404</p>
+    <p class="text-lg font-semibold">Page not found</p>
+    <p class="text-slate-300 mt-2">Try heading back to the dashboard.</p>
+    <a href="{{ url_for('dashboard') }}" class="mt-6 inline-block px-4 py-2 rounded bg-blue-600 text-white text-sm">Go home</a>
+  </div>
+{% endblock %}

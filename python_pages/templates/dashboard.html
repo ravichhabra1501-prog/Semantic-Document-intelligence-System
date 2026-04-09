@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-3xl font-bold">Dashboard</h1>
+      <p class="text-slate-300 text-sm">Overview of your documents.</p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="px-4 py-2 rounded bg-blue-600 text-white text-sm">Refresh</a>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    {% for doc in documents %}
+      <div class="card rounded-xl p-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">{{ doc.title }}</h2>
+          <span class="text-xs px-2 py-1 rounded bg-white/10 border border-white/10">{{ doc.status }}</span>
+        </div>
+        <p class="text-sm text-slate-300 mt-2">{{ doc.summary }}</p>
+        <div class="flex flex-wrap gap-2 mt-3">
+          {% for tag in doc.tags %}
+            <span class="text-xs px-2 py-1 rounded bg-blue-500/20 border border-blue-500/30 text-blue-100">{{ tag }}</span>
+          {% endfor %}
+        </div>
+        <a class="inline-block mt-4 text-sm text-blue-200 hover:underline" href="{{ url_for('document_detail', doc_id=doc.id) }}">Open</a>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

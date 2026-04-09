@@ -1,17 +1,15 @@
-import { type Express } from "express";
-import { createServer as createViteServer, createLogger } from "vite";
-import { type Server } from "http";
-import viteConfig from "../vite.config";
 import fs from "fs";
-import path from "path";
 import { nanoid } from "nanoid";
+import path from "path";
+import { createLogger, createServer as createViteServer } from "vite";
+import viteConfig from "../vite.config";
 
 const viteLogger = createLogger();
 
-export async function setupVite(server: Server, app: Express) {
+export async function setupVite(app: any) {
   const serverOptions = {
     middlewareMode: true,
-    hmr: { server, path: "/vite-hmr" },
+    hmr: { server: app.server, path: "/vite-hmr" },
     allowedHosts: true as const,
   };
 
@@ -31,8 +29,13 @@ export async function setupVite(server: Server, app: Express) {
 
   app.use(vite.middlewares);
 
-  app.use("/{*path}", async (req, res, next) => {
-    const url = req.originalUrl;
+  // Serve index.html for any non-API GET request so client-side routing works
+  app.use(async (req, res, next) => {
+    if (req.method !== "GET" || (req.path && req.path.startsWith("/api"))) {
+      return next();
+    }
+
+    const url = req.originalUrl || req.url;
 
     try {
       const clientTemplate = path.resolve(

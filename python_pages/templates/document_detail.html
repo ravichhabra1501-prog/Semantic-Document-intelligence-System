@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+  <a href="{{ url_for('dashboard') }}" class="text-sm text-blue-200 hover:underline">&larr; Back</a>
+  <h1 class="text-3xl font-bold mt-3">{{ document.title }}</h1>
+  <p class="text-slate-300 mt-2">{{ document.summary }}</p>
+
+  <div class="mt-4 flex gap-2 flex-wrap">
+    {% for tag in document.tags %}
+      <span class="text-xs px-2 py-1 rounded bg-blue-500/20 border border-blue-500/30 text-blue-100">{{ tag }}</span>
+    {% endfor %}
+  </div>
+
+  <div class="card rounded-xl p-4 mt-6">
+    <h2 class="text-lg font-semibold mb-2">Content placeholder</h2>
+    <p class="text-sm text-slate-300">In the original React app, this page renders AI-extracted document insights. Here you can connect your Python pipelines or database to populate the details.</p>
+  </div>
+{% endblock %}

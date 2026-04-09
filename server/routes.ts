@@ -1,55 +1,69 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
 import { api } from "@shared/routes";
-import { z } from "zod";
-import multer from "multer";
+import { requireAuthenticatedUser } from "./auth";
 import { processDocument } from "./processor";
+import { storage } from "./storage";
 
-// Use memory storage for uploads, process them, and store text in DB
-const upload = multer({ storage: multer.memoryStorage() });
-
-export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
-  
+export async function registerRoutes(app: any): Promise<void> {
   app.get(api.documents.list.path, async (req, res) => {
     try {
+      if (!(await requireAuthenticatedUser(req, res))) {
+        return;
+      }
+
       const query = req.query.query as string | undefined;
       const documents = await storage.getDocuments(query);
-      res.json(documents);
+      res.send(documents);
     } catch (err) {
-      res.status(500).json({ message: "Failed to list documents" });
+      res.status(500).send({ message: "Failed to list documents" });
     }
   });
 
   app.get(api.documents.get.path, async (req, res) => {
     try {
+      if (!(await requireAuthenticatedUser(req, res))) {
+        return;
+      }
+
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid ID" });
+        return res.status(400).send({ message: "Invalid ID" });
       }
-      
+
       const document = await storage.getDocument(id);
       if (!document) {
-        return res.status(404).json({ message: "Document not found" });
+        return res.status(404).send({ message: "Document not found" });
       }
-      
-      res.json(document);
+
+      res.send(document);
     } catch (err) {
-      res.status(500).json({ message: "Failed to get document" });
+      res.status(500).send({ message: "Failed to get document" });
     }
   });
 
-  app.post(api.documents.upload.path, upload.single("file"), async (req, res) => {
+  app.post(api.documents.upload.path, async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No file provided" });
+      if (!(await requireAuthenticatedUser(req, res))) {
+        return;
       }
 
-      const file = req.file;
-      
+      const data = await req.file();
+      if (!data) {
+        return res.status(400).send({ message: "No file provided" });
+      }
+
+      if (data.file.truncated) {
+        return res
+          .status(413)
+          .send({ message: "File too large. Max size is 50MB." });
+      }
+
+      const file = {
+        originalname: data.filename,
+        mimetype: data.mimetype,
+        buffer: await data.toBuffer(),
+        size: data.file.bytesRead,
+      };
+
       // Create initial pending document record
       const doc = await storage.createDocument({
         filename: file.originalname,
@@ -61,59 +75,71 @@ export async function registerRoutes(
 
       // Process immediately (removing the background queue as requested)
       try {
-        await processDocument(doc.id, file.buffer, file.mimetype, file.originalname);
+        await processDocument(
+          doc.id,
+          file.buffer,
+          file.mimetype,
+        );
         // Fetch the updated document to return to the client
         const updatedDoc = await storage.getDocument(doc.id);
-        res.status(201).json(updatedDoc || doc);
+        res.status(201).send(updatedDoc || doc);
       } catch (err) {
         console.error(`Failed to process document ${doc.id}:`, err);
-        const failedDoc = await storage.updateDocument(doc.id, { 
-          status: "failed", 
-          error: err instanceof Error ? err.message : String(err) 
+        const failedDoc = await storage.updateDocument(doc.id, {
+          status: "failed",
+          error: err instanceof Error ? err.message : String(err),
         });
-        res.status(201).json(failedDoc);
+        res.status(201).send(failedDoc);
       }
     } catch (err) {
       console.error("Upload error:", err);
-      res.status(500).json({ message: "Failed to upload document" });
+      res.status(500).send({ message: "Failed to upload document" });
     }
   });
 
   app.delete(api.documents.delete.path, async (req, res) => {
     try {
+      if (!(await requireAuthenticatedUser(req, res))) {
+        return;
+      }
+
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid ID" });
+        return res.status(400).send({ message: "Invalid ID" });
       }
-      
+
       const doc = await storage.getDocument(id);
       if (!doc) {
-        return res.status(404).json({ message: "Document not found" });
+        return res.status(404).send({ message: "Document not found" });
       }
 
       await storage.deleteDocument(id);
-      res.status(204).end();
+      res.status(204).send();
     } catch (err) {
-      res.status(500).json({ message: "Failed to delete document" });
+      res.status(500).send({ message: "Failed to delete document" });
     }
   });
 
   // Tag endpoints
   app.post(api.tags.create.path, async (req, res) => {
     try {
+      if (!(await requireAuthenticatedUser(req, res))) {
+        return;
+      }
+
       const documentId = parseInt(req.params.id);
       if (isNaN(documentId)) {
-        return res.status(400).json({ message: "Invalid document ID" });
+        return res.status(400).send({ message: "Invalid document ID" });
       }
 
       const doc = await storage.getDocument(documentId);
       if (!doc) {
-        return res.status(404).json({ message: "Document not found" });
+        return res.status(404).send({ message: "Document not found" });
       }
 
       const { name, color } = req.body;
-      if (!name || typeof name !== 'string') {
-        return res.status(400).json({ message: "Tag name is required" });
+      if (!name || typeof name !== "string") {
+        return res.status(400).send({ message: "Tag name is required" });
       }
 
       const tag = await storage.createTag({
@@ -122,37 +148,43 @@ export async function registerRoutes(
         color: color || "gray",
       });
 
-      res.status(201).json(tag);
+      res.status(201).send(tag);
     } catch (err) {
       console.error("Tag creation error:", err);
-      res.status(500).json({ message: "Failed to create tag" });
+      res.status(500).send({ message: "Failed to create tag" });
     }
   });
 
   app.delete(api.tags.delete.path, async (req, res) => {
     try {
+      if (!(await requireAuthenticatedUser(req, res))) {
+        return;
+      }
+
       const tagId = parseInt(req.params.tagId);
       if (isNaN(tagId)) {
-        return res.status(400).json({ message: "Invalid tag ID" });
+        return res.status(400).send({ message: "Invalid tag ID" });
       }
 
       await storage.deleteTag(tagId);
-      res.status(204).end();
+      res.status(204).send();
     } catch (err) {
       console.error("Tag deletion error:", err);
-      res.status(500).json({ message: "Failed to delete tag" });
+      res.status(500).send({ message: "Failed to delete tag" });
     }
   });
 
   app.get("/api/analytics", async (_req, res) => {
     try {
+      if (!(await requireAuthenticatedUser(_req, res))) {
+        return;
+      }
+
       const stats = await storage.getStats();
-      res.json(stats);
+      res.send(stats);
     } catch (err) {
       console.error("Analytics error:", err);
-      res.status(500).json({ message: "Failed to load analytics" });
+      res.status(500).send({ message: "Failed to load analytics" });
     }
   });
-
-  return httpServer;
 }

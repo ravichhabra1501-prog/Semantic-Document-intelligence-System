@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero card" style="border-radius:22px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+      <div>
+        <div class="title-xl">{{ title }}</div>
+        <div class="subtitle">{{ subtitle }}</div>
+      </div>
+      <form method="get" action="/" style="display:flex; align-items:center; gap:10px; min-width:280px;">
+        <input name="q" placeholder="{{ search_placeholder }}">
+        <button class="btn" type="submit">Search</button>
+      </form>
+    </div>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); margin-top:14px;">
+      <div class="stat"><span class="muted">Active Docs</span><span class="value">{{ documents|length }}</span></div>
+      <div class="stat"><span class="muted">Processing</span><span class="value">{{ (documents | selectattr('status','equalto','processing') | list | length) }}</span></div>
+      <div class="stat"><span class="muted">Completed</span><span class="value">{{ (documents | selectattr('status','equalto','completed') | list | length) }}</span></div>
+    </div>
+  </section>
+
+  <section class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top:18px;">
+    {% for doc in documents %}
+      <div class="card" style="position:relative; overflow:hidden;">
+        <div style="position:absolute; inset:0; background:radial-gradient(circle at 80% 0%, rgba(59,130,246,0.12), transparent 50%); pointer-events:none;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; position:relative; z-index:1;">
+          <div>
+            <div style="font-weight:800; font-size:17px;">{{ doc.name }}</div>
+            <div class="muted">Uploaded {{ doc.uploaded_at.strftime("%b %d, %Y %I:%M %p") }}</div>
+            <div class="muted">Size: {{ '%.1f' | format(doc.size_kb) }} KB</div>
+          </div>
+          <a class="btn ghost" href="/documents/{{ doc.id }}">Open</a>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; position:relative; z-index:1;">
+          <span class="badge">{{ doc.classification }}</span>
+          <span class="chip" style="border-color: rgba(255,255,255,0.2); color:#cbd5e1;">{{ doc.status }}</span>
+        </div>
+      </div>
+    {% else %}
+      <div class="card">No documents yet.</div>
+    {% endfor %}
+  </section>
+{% endblock %}
