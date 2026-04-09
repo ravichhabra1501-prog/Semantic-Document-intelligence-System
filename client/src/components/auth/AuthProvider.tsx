@@ -1,13 +1,13 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type PropsWithChildren,
-} from "react";
+import { isSupabaseDemoMode, supabase } from "@/lib/supabase";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import {
+    createContext,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+    type PropsWithChildren,
+} from "react";
 
 type AuthContextValue = {
   currentAal: string | null;
@@ -20,13 +20,55 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function createDemoUser(): User {
+  const now = new Date().toISOString();
+
+  return {
+    id: "demo-user",
+    aud: "authenticated",
+    role: "authenticated",
+    email: "demo@local",
+    email_confirmed_at: now,
+    created_at: now,
+    updated_at: now,
+    last_sign_in_at: now,
+    app_metadata: {},
+    user_metadata: {},
+  } as User;
+}
+
+function createDemoSession(): Session {
+  const user = createDemoUser();
+
+  return {
+    access_token: "demo-access-token",
+    refresh_token: "demo-refresh-token",
+    expires_in: 0,
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    token_type: "bearer",
+    user,
+  } as unknown as Session;
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [currentAal, setCurrentAal] = useState<string | null>(null);
   const [requiresMfa, setRequiresMfa] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const demoSession = useMemo(
+    () => (isSupabaseDemoMode ? createDemoSession() : null),
+    [],
+  );
 
   const refreshAuthState = async () => {
+    if (isSupabaseDemoMode) {
+      setSession(demoSession);
+      setCurrentAal(null);
+      setRequiresMfa(false);
+      setIsLoading(false);
+      return;
+    }
+
     if (!supabase) {
       setSession(null);
       setCurrentAal(null);
@@ -54,15 +96,30 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    setCurrentAal(aalResult.data.currentLevel ?? null);
+    const aalData = aalResult.data;
+
+    if (!aalData) {
+      setCurrentAal(null);
+      setRequiresMfa(false);
+      setIsLoading(false);
+      return;
+    }
+
+    setCurrentAal(aalData.currentLevel ?? null);
     setRequiresMfa(
-      aalResult.data.nextLevel === "aal2" &&
-        aalResult.data.currentLevel !== aalResult.data.nextLevel,
+      aalData.nextLevel === "aal2" &&
+        aalData.currentLevel !== aalData.nextLevel,
     );
     setIsLoading(false);
   };
 
   useEffect(() => {
+    if (isSupabaseDemoMode) {
+      setSession(demoSession);
+      setIsLoading(false);
+      return;
+    }
+
     if (!supabase) {
       setIsLoading(false);
       return;

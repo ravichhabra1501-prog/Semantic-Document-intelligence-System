@@ -24,6 +24,7 @@ export const supabaseConfigError = !supabaseUrl
       : null;
 
 export const isSupabaseConfigured = !supabaseConfigError;
+export const isSupabaseDemoMode = !supabaseUrl || !supabaseAnonKey;
 
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
@@ -41,7 +42,9 @@ export async function getSupabaseAccessToken() {
   return session?.access_token ?? null;
 }
 
-export async function getSupabaseAuthHeaders() {
+export async function getSupabaseAuthHeaders(): Promise<
+  Record<string, string>
+> {
   const accessToken = await getSupabaseAccessToken();
 
   return accessToken

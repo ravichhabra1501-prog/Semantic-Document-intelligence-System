@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+const isDemoMode = !supabaseUrl || !supabaseAnonKey;
 
 const serverSupabase =
   supabaseUrl && supabaseAnonKey
@@ -22,12 +23,12 @@ function getBearerToken(authorizationHeader?: string) {
 }
 
 export async function requireAuthenticatedUser(req: any, res: any) {
-  if (!serverSupabase) {
-    res.status(500).send({
-      message:
-        "Supabase auth is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to the server environment.",
-    });
-    return null;
+  if (isDemoMode || !serverSupabase) {
+    return {
+      id: "demo-user",
+      email: "demo@local",
+      role: "authenticated",
+    };
   }
 
   const accessToken = getBearerToken(req.headers.authorization);
