@@ -33,9 +33,10 @@ export default function AuthPage() {
 
     setIsSubmitting(true);
 
-    if (isSupabaseDemoMode) {
-      const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
+    const authRedirectUrl = window.location.origin;
 
+    if (isSupabaseDemoMode) {
       setDemoAuthEmail(normalizedEmail || "demo@local");
 
       toast({
@@ -61,13 +62,46 @@ export default function AuthPage() {
 
     try {
       if (mode === "sign-in") {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
+        const signInResult = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
           password,
         });
 
-        if (error) {
-          throw error;
+        if (signInResult.error) {
+          const invalidCredentials =
+            signInResult.error.message === "Invalid login credentials";
+
+          if (!invalidCredentials) {
+            throw signInResult.error;
+          }
+
+          const signUpResult = await supabase.auth.signUp({
+            email: normalizedEmail,
+            password,
+            options: {
+              emailRedirectTo: authRedirectUrl,
+            },
+          });
+
+          if (signUpResult.error) {
+            throw signUpResult.error;
+          }
+
+          if (signUpResult.data.session) {
+            toast({
+              title: "Welcome to Doc Intel",
+              description: "Your account was created and signed in.",
+            });
+            return;
+          }
+
+          toast({
+            title: "Check your inbox",
+            description:
+              "Your account was created, but Supabase needs email confirmation before the first sign-in.",
+          });
+          setMode("sign-in");
+          return;
         }
 
         toast({
@@ -76,10 +110,10 @@ export default function AuthPage() {
         });
       } else {
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: authRedirectUrl,
           },
         });
 
