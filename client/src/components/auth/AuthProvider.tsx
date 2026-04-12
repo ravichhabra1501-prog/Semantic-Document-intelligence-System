@@ -24,6 +24,13 @@ type AuthContextValue = {
   user: AuthUser | null;
 };
 
+const localDevUser: AuthUser = {
+  email: "local@workspace",
+  id: "local-user",
+  name: "Local User",
+  tenantId: null,
+};
+
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -39,11 +46,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } = await supabase.auth.getUser();
 
     if (error) {
-      setUser(null);
+      setUser(import.meta.env.DEV ? localDevUser : null);
       return;
     }
 
-    setUser(getSignedInUser(supabaseUser));
+    const nextUser = getSignedInUser(supabaseUser);
+    setUser(nextUser ?? (import.meta.env.DEV ? localDevUser : null));
   }, [supabase]);
 
   useEffect(() => {
