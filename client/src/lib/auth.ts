@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/client";
 
 const defaultSupabaseAuthorizeUrl =
-  "https://yrqtudqlazoozqbjvwgk.supabase.co/auth/v1/oauth/authorize";
+  "https://yrqtudqlazoozqbjvwgk.supabase.co/auth/v1/authorize";
 const defaultSupabaseTokenUrl =
-  "https://yrqtudqlazoozqbjvwgk.supabase.co/auth/v1/oauth/token";
+  "https://yrqtudqlazoozqbjvwgk.supabase.co/auth/v1/token";
 
 const supabaseAuthorizeUrl =
   (import.meta.env.VITE_SUPABASE_AUTH_ENDPOINT as string | undefined)?.trim() ||
@@ -16,10 +16,6 @@ const supabaseTokenUrl =
 const supabaseOAuthProvider =
   (
     import.meta.env.VITE_SUPABASE_OAUTH_PROVIDER as string | undefined
-  )?.trim() || "";
-const supabaseOAuthClientId =
-  (
-    import.meta.env.VITE_SUPABASE_OAUTH_CLIENT_ID as string | undefined
   )?.trim() || "";
 
 const supabase = createClient();
@@ -130,11 +126,6 @@ export async function signIn() {
     provider: supabaseOAuthProvider as any,
     options: {
       redirectTo: window.location.origin,
-      queryParams: supabaseOAuthClientId
-        ? {
-            client_id: supabaseOAuthClientId,
-          }
-        : undefined,
     },
   });
 
