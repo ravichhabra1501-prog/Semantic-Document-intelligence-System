@@ -1,141 +1,65 @@
+import { EventType, type AccountInfo } from "@azure/msal-browser";
+import { useMsal } from "@azure/msal-react";
 import {
-    DEMO_AUTH_EVENT,
-    getDemoAuthEmail,
-    isSupabaseDemoMode,
-    supabase,
-} from "@/lib/supabase";
-import type { Session, User } from "@supabase/supabase-js";
-import {
-    createContext,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-    type PropsWithChildren,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type PropsWithChildren,
 } from "react";
 
+import {
+  entraMsalInstance,
+  getSignedInUser,
+  initializeEntraAuth,
+} from "@/lib/entra";
+
+type AuthUser = {
+  email: string;
+  id: string;
+  name: string | null;
+  tenantId: string | null;
+  account: AccountInfo;
+};
+
 type AuthContextValue = {
-  currentAal: string | null;
   isLoading: boolean;
-  requiresMfa: boolean;
   refreshAuthState: () => Promise<void>;
-  session: Session | null;
-  user: User | null;
+  user: AuthUser | null;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function createDemoUser(email: string): User {
-  const now = new Date().toISOString();
-
-  return {
-    id: "demo-user",
-    aud: "authenticated",
-    role: "authenticated",
-    email,
-    email_confirmed_at: now,
-    created_at: now,
-    updated_at: now,
-    last_sign_in_at: now,
-    app_metadata: {},
-    user_metadata: {},
-  } as User;
-}
-
-function createDemoSession(email: string): Session {
-  const user = createDemoUser(email);
-
-  return {
-    access_token: "demo-access-token",
-    refresh_token: "demo-refresh-token",
-    expires_in: 0,
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
-    token_type: "bearer",
-    user,
-  } as unknown as Session;
-}
-
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [currentAal, setCurrentAal] = useState<string | null>(null);
-  const [requiresMfa, setRequiresMfa] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
+  const { instance, accounts } = useMsal();
+  const [account, setAccount] = useState<AccountInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshAuthState = async () => {
-    if (isSupabaseDemoMode) {
-      const email = getDemoAuthEmail();
-      setSession(email ? createDemoSession(email) : null);
-      setCurrentAal(null);
-      setRequiresMfa(false);
+    if (!entraMsalInstance) {
+      setAccount(null);
       setIsLoading(false);
       return;
     }
 
-    if (!supabase) {
-      setSession(null);
-      setCurrentAal(null);
-      setRequiresMfa(false);
-      setIsLoading(false);
-      return;
+    await initializeEntraAuth();
+
+    const activeAccount =
+      entraMsalInstance.getActiveAccount() ??
+      entraMsalInstance.getAllAccounts()[0] ??
+      null;
+
+    if (activeAccount) {
+      entraMsalInstance.setActiveAccount(activeAccount);
     }
 
-    const [{ data, error }, aalResult] = await Promise.all([
-      supabase.auth.getSession(),
-      supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-    ]);
-
-    if (error) {
-      console.error("Failed to restore Supabase session", error);
-    }
-
-    const nextSession = data.session ?? null;
-    setSession(nextSession);
-
-    if (!nextSession) {
-      setCurrentAal(null);
-      setRequiresMfa(false);
-      setIsLoading(false);
-      return;
-    }
-
-    const aalData = aalResult.data;
-
-    if (!aalData) {
-      setCurrentAal(null);
-      setRequiresMfa(false);
-      setIsLoading(false);
-      return;
-    }
-
-    setCurrentAal(aalData.currentLevel ?? null);
-    setRequiresMfa(
-      aalData.nextLevel === "aal2" &&
-        aalData.currentLevel !== aalData.nextLevel,
-    );
+    setAccount(activeAccount);
     setIsLoading(false);
   };
 
   useEffect(() => {
-    if (isSupabaseDemoMode) {
-      const email = getDemoAuthEmail();
-      setSession(email ? createDemoSession(email) : null);
-      setIsLoading(false);
-
-      const handleDemoAuthChanged = () => {
-        refreshAuthState().catch((error) => {
-          console.error("Failed to refresh demo auth state", error);
-          setIsLoading(false);
-        });
-      };
-
-      window.addEventListener(DEMO_AUTH_EVENT, handleDemoAuthChanged);
-
-      return () => {
-        window.removeEventListener(DEMO_AUTH_EVENT, handleDemoAuthChanged);
-      };
-    }
-
-    if (!supabase) {
+    if (!entraMsalInstance) {
       setIsLoading(false);
       return;
     }
@@ -144,41 +68,57 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     refreshAuthState().catch((error) => {
       if (isMounted) {
-        console.error("Failed to refresh auth state", error);
+        console.error("Failed to refresh Entra auth state", error);
         setIsLoading(false);
       }
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!isMounted) {
+    const callbackId = instance.addEventCallback((event) => {
+      if (
+        !isMounted ||
+        !event ||
+        ![EventType.LOGIN_SUCCESS, EventType.LOGOUT_SUCCESS, EventType.ACCOUNT_ADDED, EventType.ACCOUNT_REMOVED].includes(
+          event.eventType,
+        )
+      ) {
         return;
       }
 
-      setSession(nextSession ?? null);
       refreshAuthState().catch((error) => {
-        console.error("Failed to refresh auth state", error);
+        console.error("Failed to refresh Entra auth state", error);
         setIsLoading(false);
       });
     });
 
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      if (callbackId) {
+        instance.removeEventCallback(callbackId);
+      }
     };
-  }, []);
+  }, [instance]);
+
+  useEffect(() => {
+    if (!entraMsalInstance || accounts.length === 0) {
+      return;
+    }
+
+    const nextAccount =
+      entraMsalInstance.getActiveAccount() ?? accounts[0] ?? null;
+
+    if (nextAccount) {
+      entraMsalInstance.setActiveAccount(nextAccount);
+      setAccount(nextAccount);
+    }
+  }, [accounts]);
 
   const value = useMemo(
     () => ({
-      currentAal,
       isLoading,
       refreshAuthState,
-      requiresMfa,
-      session,
-      user: session?.user ?? null,
+      user: account ? { ...getSignedInUser(account), account } : null,
     }),
-    [currentAal, isLoading, requiresMfa, session],
+    [account, isLoading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

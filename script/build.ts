@@ -59,6 +59,21 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  console.log("building Azure Functions app bundle...");
+  await esbuild({
+    entryPoints: ["server/app.ts"],
+    platform: "node",
+    bundle: true,
+    format: "cjs",
+    outfile: "dist/app.cjs",
+    define: {
+      "process.env.NODE_ENV": '"production"',
+    },
+    minify: true,
+    external: externals,
+    logLevel: "info",
+  });
 }
 
 buildAll().catch((err) => {

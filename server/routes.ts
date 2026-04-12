@@ -1,7 +1,7 @@
-import { api } from "@shared/routes";
-import { requireAuthenticatedUser } from "./auth";
-import { processDocument } from "./processor";
-import { storage } from "./storage";
+import { api } from "../shared/routes.js";
+import { requireAuthenticatedUser } from "./auth.js";
+import { processDocument } from "./processor.js";
+import { storage } from "./storage.js";
 
 export async function registerRoutes(app: any): Promise<void> {
   app.get(api.documents.list.path, async (req: any, res: any) => {

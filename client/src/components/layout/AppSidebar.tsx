@@ -13,11 +13,7 @@ import {
     SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { toast } from "@/hooks/use-toast";
-import {
-    clearDemoAuthState,
-    isSupabaseDemoMode,
-    supabase,
-} from "@/lib/supabase";
+import { signOutFromEntra } from "@/lib/entra";
 import {
     Activity,
     ChevronRight,
@@ -66,38 +62,20 @@ export function AppSidebar() {
   const handleSignOut = async () => {
     setIsSigningOut(true);
 
-    if (isSupabaseDemoMode) {
-      clearDemoAuthState();
-      toast({
-        title: "Signed out",
-        description: "Demo session ended.",
-      });
-      setIsSigningOut(false);
-      return;
-    }
-
-    if (!supabase) {
-      toast({
-        title: "Unable to sign out",
-        description: "Authentication client is not configured.",
-        variant: "destructive",
-      });
-      setIsSigningOut(false);
-      return;
-    }
-
-    const { error } = await supabase.auth.signOut({ scope: "local" });
-
-    if (error) {
-      toast({
-        title: "Unable to sign out",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
+    try {
+      await signOutFromEntra();
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Unable to sign out",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Sign-out failed unexpectedly.",
+        variant: "destructive",
       });
     }
 

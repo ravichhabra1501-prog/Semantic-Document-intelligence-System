@@ -1,10 +1,4 @@
-import mammoth from "mammoth";
-import OpenAI from "openai";
-import pRetry from "p-retry";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import sharp from "sharp";
-import { createWorker } from "tesseract.js";
-import { storage } from "./storage";
+import { storage } from "./storage.js";
 
 // Prefer app-specific env vars but fall back to standard OpenAI envs so Vision works locally too.
 const rawKey =
@@ -14,45 +8,77 @@ const rawBase =
   process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || process.env.OPENAI_BASE_URL || "";
 const openaiBaseUrl = rawBase.trim() || undefined;
 
-const openai = openaiApiKey
-  ? new OpenAI({
-      apiKey: openaiApiKey,
-      baseURL: openaiBaseUrl,
-    })
-  : null;
+type TesseractWorker = {
+  load(): Promise<void>;
+  loadLanguage(language: string): Promise<void>;
+  initialize(language: string): Promise<void>;
+  setParameters(params: Record<string, unknown>): Promise<void>;
+  recognize(image: Buffer): Promise<{ data: { text?: string } }>;
+};
 
-if (openai) {
-  console.log(
-    `[ai] OpenAI client initialized${openaiBaseUrl ? ` (baseURL=${openaiBaseUrl})` : ""}`,
-  );
-} else {
-  console.warn("[ai] OpenAI disabled: API key not provided");
+let tesseractWorker: any = null;
+let mammothModule: Promise<typeof import("mammoth")> | null = null;
+let pdfjsModule: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | null =
+  null;
+let openaiClient: any = null;
+let openaiModule: Promise<any> | null = null;
+
+async function getOpenAIClient() {
+  if (openaiClient !== null) {
+    return openaiClient;
+  }
+
+  if (!openaiApiKey) {
+    openaiClient = null;
+    return null;
+  }
+
+  if (!openaiModule) {
+    openaiModule = import("openai");
+  }
+
+  const { default: OpenAI } = await openaiModule;
+  openaiClient = new OpenAI({
+    apiKey: openaiApiKey,
+    baseURL: openaiBaseUrl,
+  });
+  return openaiClient;
 }
 
-let tesseractWorker: Awaited<ReturnType<typeof createWorker>> | null = null;
+async function runWithRetry<T>(
+  operation: () => Promise<T>,
+  options: { retries: number; factor: number },
+) {
+  const { default: pRetry } = await import("p-retry");
+  return pRetry(operation, options);
+}
 
 async function getTesseractWorker() {
   if (!tesseractWorker) {
-    tesseractWorker = await createWorker({
+    const { createWorker } = await import("tesseract.js");
+    const worker = await createWorker({
       logger: () => {},
     });
-    await tesseractWorker.load();
-    await tesseractWorker.loadLanguage("eng");
-    await tesseractWorker.initialize("eng");
+    await worker.load();
+    await worker.loadLanguage("eng");
+    await worker.initialize("eng");
     // Bias toward paragraph text with LSTM; helps mixed documents/screenshots.
-    await tesseractWorker.setParameters(({
+    await worker.setParameters(({
       tessedit_pageseg_mode: 6 as any,
       tessedit_ocr_engine_mode: "1",
       // Keep a broad whitelist to avoid dropping symbols while still limiting noise.
       tessedit_char_whitelist:
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-–—.,:;!?@#%&()[]{}<>+*/\\\"' \n",
     }) as any);
+    tesseractWorker = worker;
   }
   return tesseractWorker;
 }
 
 async function extractTextFromImage(buffer: Buffer): Promise<string> {
   try {
+    const { default: sharp } = await import("sharp");
+
     // First pass: denoise + binarize to give OCR maximum contrast.
     const processed = await sharp(buffer)
       .rotate() // respect EXIF orientation
@@ -247,6 +273,7 @@ function coerceAnalysis(resultText: string | null | undefined, content: string) 
 }
 
 async function analyzeImageWithAI(buffer: Buffer, mimeType: string) {
+  const openai = await getOpenAIClient();
   if (!openai) {
     const fallbackWorkflow = buildFallbackWorkflow("");
     return {
@@ -260,7 +287,7 @@ async function analyzeImageWithAI(buffer: Buffer, mimeType: string) {
 
   const base64Image = buffer.toString("base64");
 
-  const response = await pRetry(
+  const response = await runWithRetry(
     async () => {
       const res = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -329,6 +356,11 @@ Respond ONLY as JSON with keys: content, summary, classification, entities, work
 // Extract text from PDF using pdfjs-dist
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
+    const openai = await getOpenAIClient();
+    if (!pdfjsModule) {
+      pdfjsModule = import("pdfjs-dist/legacy/build/pdf.mjs");
+    }
+    const pdfjsLib = await pdfjsModule;
     const uint8Array = new Uint8Array(buffer);
     const loadingTask = pdfjsLib.getDocument({
       data: uint8Array,
@@ -361,6 +393,7 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
     return extractedText;
   } catch (error) {
     console.error("pdfjs extraction error:", error);
+    const openai = await getOpenAIClient();
     if (openai) {
       return await extractTextFromPDFWithAI(buffer);
     }
@@ -371,6 +404,7 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 // AI-based fallback: ask GPT-4o to describe/extract content from a PDF
 // Note: sends truncated base64 as text prompt since Vision API doesn't support PDFs
 async function extractTextFromPDFWithAI(buffer: Buffer): Promise<string> {
+  const openai = await getOpenAIClient();
   if (!openai) {
     throw new Error("OpenAI is not configured for PDF fallback extraction");
   }
@@ -406,6 +440,8 @@ export async function processDocument(
   try {
     await storage.updateDocument(id, { status: "processing" });
 
+    const openai = await getOpenAIClient();
+
     let content = "";
     const normalizedMime = mimeType.toLowerCase();
 
@@ -417,6 +453,10 @@ export async function processDocument(
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ) {
       try {
+        if (!mammothModule) {
+          mammothModule = import("mammoth");
+        }
+        const mammoth = await mammothModule;
         const result = await mammoth.extractRawText({ buffer });
         content = result.value;
       } catch (error) {
@@ -580,7 +620,7 @@ Respond ONLY with a JSON object in this exact format:
           workflow: analysisFromImage.workflow,
         };
       } else {
-        const resultText = await pRetry(
+        const resultText = await runWithRetry(
           async () => {
             const response = await openai.chat.completions.create({
               model: "gpt-4o",

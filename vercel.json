@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/public",
+  "functions": {
+    "api/[...path].ts": {
+      "includeFiles": "{server/**/*,shared/**/*,node_modules/@supabase/**/*,node_modules/mammoth/**/*,node_modules/openai/**/*,node_modules/p-retry/**/*,node_modules/pdfjs-dist/**/*,node_modules/sharp/**/*,node_modules/tesseract.js/**/*}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!api).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

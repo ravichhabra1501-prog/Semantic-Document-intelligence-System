@@ -1,11 +1,17 @@
+import { desc, eq, inArray } from "drizzle-orm";
+
 import {
-    type Document,
-    type Entity,
-    type InsertDocument,
-    type InsertEntity,
-    type InsertTag,
-    type Tag,
-} from "@shared/schema";
+  documents,
+  entities,
+  tags,
+  type Document,
+  type Entity,
+  type InsertDocument,
+  type InsertEntity,
+  type InsertTag,
+  type Tag,
+} from "../shared/schema.js";
+import { db, initializeDatabase } from "./db.js";
 
 export interface AnalyticsStats {
   totalDocuments: number;
@@ -40,24 +46,30 @@ export interface IStorage {
   getStats(): Promise<AnalyticsStats>;
 }
 
-// In-memory storage implementation.
-// This removes the need for a database connection and lets the app run without configuring DATABASE_URL.
-
 function nowDate() {
   return new Date();
 }
 
-export class InMemoryStorage implements IStorage {
-  private documents: Document[] = [];
-  private entities: Entity[] = [];
-  private tags: Tag[] = [];
+function normalizeText(value: string | null | undefined) {
+  return (value ?? "").toLowerCase();
+}
 
-  private nextDocumentId = 1;
-  private nextEntityId = 1;
-  private nextTagId = 1;
+function buildTypeLabel(mimeType: string | null | undefined) {
+  if (mimeType === "application/pdf") return "PDF";
+  if (
+    mimeType ===
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) {
+    return "DOCX";
+  }
+  if (mimeType === "text/plain") return "TXT";
+  if (mimeType?.startsWith("image/")) return "Image";
+  return "Other";
+}
 
-  private clone<T>(value: T): T {
-    return JSON.parse(JSON.stringify(value));
+class PostgresStorage implements IStorage {
+  private async ensureReady() {
+    await initializeDatabase();
   }
 
   private applyQueryFilter(docs: Document[], query?: string) {
@@ -66,138 +78,149 @@ export class InMemoryStorage implements IStorage {
     const lower = query.toLowerCase();
     return docs.filter((doc) => {
       return (
-        String(doc.filename).toLowerCase().includes(lower) ||
-        String(doc.summary ?? "")
-          .toLowerCase()
-          .includes(lower) ||
-        String(doc.content ?? "")
-          .toLowerCase()
-          .includes(lower) ||
-        String(doc.classification ?? "")
-          .toLowerCase()
-          .includes(lower)
+        normalizeText(doc.filename).includes(lower) ||
+        normalizeText(doc.summary).includes(lower) ||
+        normalizeText(doc.content).includes(lower) ||
+        normalizeText(doc.classification).includes(lower)
       );
     });
   }
 
   async getDocuments(query?: string): Promise<(Document & { tags?: Tag[] })[]> {
-    const docs = this.applyQueryFilter(
-      [...this.documents].sort(
-        (a, b) =>
-          (a.createdAt ? new Date(a.createdAt).getTime() : 0) -
-          (b.createdAt ? new Date(b.createdAt).getTime() : 0),
-      ),
-    );
+    await this.ensureReady();
 
-    const docsWithTags = docs.map((doc) => ({
+    const docs = await db
+      .select()
+      .from(documents)
+      .orderBy(desc(documents.createdAt), desc(documents.id));
+
+    const filteredDocs = this.applyQueryFilter(docs, query);
+    const docIds = filteredDocs.map((doc) => doc.id);
+    const allTags = docIds.length
+      ? await db.select().from(tags).where(inArray(tags.documentId, docIds))
+      : [];
+
+    const tagsByDocumentId = new Map<number, Tag[]>();
+    for (const tag of allTags) {
+      const list = tagsByDocumentId.get(tag.documentId) ?? [];
+      list.push(tag);
+      tagsByDocumentId.set(tag.documentId, list);
+    }
+
+    return filteredDocs.map((doc) => ({
       ...doc,
-      tags: this.tags.filter((t) => t.documentId === doc.id),
+      tags: tagsByDocumentId.get(doc.id) ?? [],
     }));
-
-    return this.clone(docsWithTags);
   }
 
   async getDocument(
     id: number,
   ): Promise<(Document & { entities: Entity[]; tags: Tag[] }) | undefined> {
-    const doc = this.documents.find((d) => d.id === id);
+    await this.ensureReady();
+
+    const [doc] = await db.select().from(documents).where(eq(documents.id, id)).limit(1);
     if (!doc) return undefined;
 
-    const docEntities = this.entities.filter((e) => e.documentId === id);
-    const docTags = this.tags.filter((t) => t.documentId === id);
+    const [docEntities, docTags] = await Promise.all([
+      db.select().from(entities).where(eq(entities.documentId, id)),
+      db.select().from(tags).where(eq(tags.documentId, id)),
+    ]);
 
-    return this.clone({
+    return {
       ...doc,
       entities: docEntities,
       tags: docTags,
-    });
+    };
   }
 
   async createDocument(doc: InsertDocument): Promise<Document> {
-    const nextId = this.nextDocumentId++;
-    const now = nowDate();
-    const created: Document = {
-      id: nextId,
-      filename: doc.filename,
-      originalName: doc.originalName,
-      mimeType: doc.mimeType,
-      size: doc.size,
-      content: doc.content ?? null,
-      summary: doc.summary ?? null,
-      classification: doc.classification ?? null,
-      workflow: doc.workflow ?? null,
-      diagram: doc.diagram ?? null,
-      status: doc.status ?? "pending",
-      error: doc.error ?? null,
-      createdAt: now,
-    } as unknown as Document;
+    await this.ensureReady();
 
-    this.documents.push(created);
-    return this.clone(created);
+    const [created] = await db.insert(documents).values(doc).returning();
+    if (!created) {
+      throw new Error("Failed to create document");
+    }
+
+    return created;
   }
 
   async updateDocument(
     id: number,
     updates: Partial<InsertDocument>,
   ): Promise<Document> {
-    const index = this.documents.findIndex((d) => d.id === id);
-    if (index === -1) throw new Error("Document not found");
+    await this.ensureReady();
 
-    this.documents[index] = {
-      ...this.documents[index],
-      ...updates,
-    } as Document;
+    const [updated] = await db
+      .update(documents)
+      .set(updates)
+      .where(eq(documents.id, id))
+      .returning();
 
-    return this.clone(this.documents[index]);
+    if (!updated) {
+      throw new Error("Document not found");
+    }
+
+    return updated;
   }
 
   async deleteDocument(id: number): Promise<void> {
-    this.entities = this.entities.filter((e) => e.documentId !== id);
-    this.tags = this.tags.filter((t) => t.documentId !== id);
-    this.documents = this.documents.filter((d) => d.id !== id);
+    await this.ensureReady();
+
+    await db.transaction(async (tx) => {
+      await tx.delete(entities).where(eq(entities.documentId, id));
+      await tx.delete(tags).where(eq(tags.documentId, id));
+      await tx.delete(documents).where(eq(documents.id, id));
+    });
   }
 
   async createEntity(entity: InsertEntity): Promise<Entity> {
-    const created: Entity = {
-      id: this.nextEntityId++,
-      documentId: entity.documentId,
-      entityType: entity.entityType,
-      value: entity.value,
-    } as Entity;
+    await this.ensureReady();
 
-    this.entities.push(created);
-    return this.clone(created);
+    const [created] = await db.insert(entities).values(entity).returning();
+    if (!created) {
+      throw new Error("Failed to create entity");
+    }
+
+    return created;
   }
 
   async getEntitiesForDocument(documentId: number): Promise<Entity[]> {
-    return this.clone(this.entities.filter((e) => e.documentId === documentId));
+    await this.ensureReady();
+
+    return db.select().from(entities).where(eq(entities.documentId, documentId));
   }
 
   async createTag(tag: InsertTag): Promise<Tag> {
-    const created: Tag = {
-      id: this.nextTagId++,
-      documentId: tag.documentId,
-      name: tag.name,
-      color: tag.color ?? "gray",
-      createdAt: nowDate(),
-    } as unknown as Tag;
+    await this.ensureReady();
 
-    this.tags.push(created);
-    return this.clone(created);
+    const [created] = await db.insert(tags).values(tag).returning();
+    if (!created) {
+      throw new Error("Failed to create tag");
+    }
+
+    return created;
   }
 
   async deleteTag(id: number): Promise<void> {
-    this.tags = this.tags.filter((t) => t.id !== id);
+    await this.ensureReady();
+
+    await db.delete(tags).where(eq(tags.id, id));
   }
 
   async getTagsForDocument(documentId: number): Promise<Tag[]> {
-    return this.clone(this.tags.filter((t) => t.documentId === documentId));
+    await this.ensureReady();
+
+    return db.select().from(tags).where(eq(tags.documentId, documentId));
   }
 
   async getStats(): Promise<AnalyticsStats> {
-    const allDocs = [...this.documents];
-    const allEntities = [...this.entities];
-    const allTags = [...this.tags];
+    await this.ensureReady();
+
+    const [allDocs, allEntities, allTags] = await Promise.all([
+      db.select().from(documents),
+      db.select().from(entities),
+      db.select().from(tags),
+    ]);
 
     const statusMap: Record<string, number> = {};
     for (const doc of allDocs) {
@@ -206,15 +229,7 @@ export class InMemoryStorage implements IStorage {
 
     const typeMap: Record<string, number> = {};
     for (const doc of allDocs) {
-      let type = "Other";
-      if (doc.mimeType === "application/pdf") type = "PDF";
-      else if (
-        doc.mimeType ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      )
-        type = "DOCX";
-      else if (doc.mimeType === "text/plain") type = "TXT";
-      else if (doc.mimeType?.startsWith("image/")) type = "Image";
+      const type = buildTypeLabel(doc.mimeType);
       typeMap[type] = (typeMap[type] || 0) + 1;
     }
 
@@ -226,19 +241,23 @@ export class InMemoryStorage implements IStorage {
     }
 
     const entityTypeMap: Record<string, number> = {};
-    for (const e of allEntities) {
-      entityTypeMap[e.entityType] = (entityTypeMap[e.entityType] || 0) + 1;
+    for (const entity of allEntities) {
+      entityTypeMap[entity.entityType] = (entityTypeMap[entity.entityType] || 0) + 1;
     }
 
     const dateMap: Record<string, number> = {};
-    const now = new Date();
+    const now = nowDate();
     for (let i = 13; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       dateMap[d.toISOString().slice(0, 10)] = 0;
     }
+
     for (const doc of allDocs) {
-      const date = new Date(doc.createdAt || 0).toISOString().slice(0, 10);
+      const createdAt = doc.createdAt ? new Date(doc.createdAt) : null;
+      if (!createdAt || Number.isNaN(createdAt.getTime())) continue;
+
+      const date = createdAt.toISOString().slice(0, 10);
       if (date in dateMap) {
         dateMap[date]++;
       }
@@ -268,4 +287,4 @@ export class InMemoryStorage implements IStorage {
   }
 }
 
-export const storage = new InMemoryStorage();
+export const storage = new PostgresStorage();

@@ -1,150 +1,41 @@
 import { Button } from "@/components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import {
-    isSupabaseConfigured,
-    isSupabaseDemoMode,
-    setDemoAuthEmail,
-    supabase,
-    supabaseConfigError,
-} from "@/lib/supabase";
-import { LoaderCircle, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { entraConfigError, signInWithEntra } from "@/lib/entra";
+import { LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 import { useState } from "react";
 
-type AuthMode = "sign-in" | "sign-up";
+type AuthPageProps = {
+  configError?: string | null;
+};
 
-export default function AuthPage() {
-  const [mode, setMode] = useState<AuthMode>("sign-in");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function AuthPage({ configError }: AuthPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
+  const handleSignIn = async () => {
     setIsSubmitting(true);
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const authRedirectUrl = window.location.origin;
-
-    if (isSupabaseDemoMode) {
-      setDemoAuthEmail(normalizedEmail || "demo@local");
-
-      toast({
-        title: "Welcome to Doc Intel",
-        description: "Demo mode is active. You are now signed in locally.",
-      });
-
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!supabase) {
-      toast({
-        title: "Login is not configured",
-        description:
-          supabaseConfigError ??
-          "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in the project .env file.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
-      if (mode === "sign-in") {
-        const signInResult = await supabase.auth.signInWithPassword({
-          email: normalizedEmail,
-          password,
-        });
-
-        if (signInResult.error) {
-          const invalidCredentials =
-            signInResult.error.message === "Invalid login credentials";
-
-          if (!invalidCredentials) {
-            throw signInResult.error;
-          }
-
-          const signUpResult = await supabase.auth.signUp({
-            email: normalizedEmail,
-            password,
-            options: {
-              emailRedirectTo: authRedirectUrl,
-            },
-          });
-
-          if (signUpResult.error) {
-            throw signUpResult.error;
-          }
-
-          if (signUpResult.data.session) {
-            toast({
-              title: "Welcome to Doc Intel",
-              description: "Your account was created and signed in.",
-            });
-            return;
-          }
-
-          toast({
-            title: "Check your inbox",
-            description:
-              "Your account was created, but Supabase needs email confirmation before the first sign-in.",
-          });
-          setMode("sign-in");
-          return;
-        }
-
-        toast({
-          title: "Welcome to Doc Intel",
-          description: "Your workspace is ready.",
-        });
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email: normalizedEmail,
-          password,
-          options: {
-            emailRedirectTo: authRedirectUrl,
-          },
-        });
-
-        if (error) {
-          throw error;
-        }
-
-        const needsEmailConfirmation = !data.session;
-
-        toast({
-          title: needsEmailConfirmation
-            ? "Check your inbox"
-            : "Account created",
-          description: needsEmailConfirmation
-            ? "Supabase sent a confirmation email before the first sign-in."
-            : "Your account was created and signed in.",
-        });
-
-        if (needsEmailConfirmation) {
-          setMode("sign-in");
-        }
-      }
+      await signInWithEntra();
+      toast({
+        title: "Signed in",
+        description: "Microsoft Entra ID granted access to the workspace.",
+      });
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "Something went wrong during authentication.";
+          : "Unable to sign in with Microsoft Entra ID.";
 
       toast({
-        title:
-          mode === "sign-in" ? "Unable to sign in" : "Unable to create account",
+        title: "Sign-in failed",
         description: message,
         variant: "destructive",
       });
@@ -152,6 +43,8 @@ export default function AuthPage() {
       setIsSubmitting(false);
     }
   };
+
+  const effectiveConfigError = configError ?? entraConfigError;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-16 lg:px-10">
@@ -163,39 +56,39 @@ export default function AuthPage() {
         <div className="mesh-panel panel-outline rounded-[2rem] p-8 lg:p-10">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Secure workspace access
+            Microsoft Entra ID
           </div>
 
           <h1 className="mt-6 max-w-2xl text-4xl font-semibold leading-tight text-foreground lg:text-6xl">
             Protect document intelligence with
             <span className="bg-gradient-to-r from-primary via-cyan-300 to-amber-300 bg-clip-text text-transparent">
               {" "}
-              secure access
+              enterprise identity
             </span>
           </h1>
 
           <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground lg:text-base">
-            Sign in before entering the analysis workspace. Email and password
-            flows are handled through the app's secure login flow, while the
-            existing app screens stay behind a single authenticated shell.
+            Sign in with your Microsoft work or school account. Access tokens
+            from Entra ID are sent to the API, and tenant policies control MFA
+            and conditional access.
           </p>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
             {[
               {
-                title: "Session restore",
+                title: "Tenant policies",
                 description:
-                  "Users stay signed in between refreshes with browser session persistence.",
+                  "MFA, device compliance, and conditional access live in Entra, not in the app.",
               },
               {
-                title: "Protected UI",
+                title: "Token-based API",
                 description:
-                  "Dashboard, analytics, settings, and document pages only render after auth.",
+                  "The frontend obtains an access token for the API scope and sends it with requests.",
               },
               {
-                title: "VS Code friendly",
+                title: "Fast session restore",
                 description:
-                  "Env-driven setup keeps the project easy to run locally from this workspace.",
+                  "The app keeps the Microsoft session in local storage for quick reloads.",
               },
             ].map((item) => (
               <div
@@ -216,99 +109,42 @@ export default function AuthPage() {
         <Card className="border-white/10 bg-[linear-gradient(180deg,rgba(10,15,26,0.96),rgba(7,11,19,0.92))] shadow-[0_30px_80px_rgba(0,0,0,0.28)]">
           <CardHeader className="space-y-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary">
-              <LockKeyhole className="h-5 w-5" />
+              <Sparkles className="h-5 w-5" />
             </div>
-            <CardTitle>
-              {mode === "sign-in"
-                ? "Sign in to Doc Intel"
-                : "Create your account"}
-            </CardTitle>
+            <CardTitle>Sign in to Doc Intel</CardTitle>
             <CardDescription>
-              {mode === "sign-in"
-                ? "Use your email and password to open the workspace."
-                : "New users can register here. Email confirmation may be required before first access."}
+              Use Microsoft Entra ID to access the workspace.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="space-y-5" onSubmit={handleSubmit}>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="you@example.com"
-                    className="h-11 rounded-xl border-white/10 bg-black/20 pl-10"
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete={
-                    mode === "sign-in" ? "current-password" : "new-password"
-                  }
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="At least 6 characters"
-                  className="h-11 rounded-xl border-white/10 bg-black/20"
-                  minLength={6}
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-
+            <div className="space-y-5">
               <Button
-                type="submit"
+                type="button"
                 className="h-11 w-full rounded-xl font-semibold"
+                onClick={handleSignIn}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <>
                     <LoaderCircle className="h-4 w-4 animate-spin" />
-                    Working...
+                    Redirecting...
                   </>
-                ) : mode === "sign-in" ? (
-                  "Sign In"
                 ) : (
-                  "Create Account"
+                  "Sign in with Microsoft"
                 )}
               </Button>
 
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full rounded-xl text-muted-foreground hover:text-foreground"
-                onClick={() =>
-                  setMode((current) =>
-                    current === "sign-in" ? "sign-up" : "sign-in",
-                  )
-                }
-                disabled={isSubmitting}
-              >
-                {mode === "sign-in"
-                  ? "Need an account? Sign up"
-                  : "Already have an account? Sign in"}
-              </Button>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-muted-foreground">
+                The app expects a Microsoft Entra tenant, a SPA client
+                registration, and an exposed API scope.
+              </div>
 
-              {!isSupabaseConfigured && (
+              {effectiveConfigError && (
                 <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
-                  {isSupabaseDemoMode
-                    ? "Supabase is not fully configured, so demo sign-in is enabled locally. Update .env values to use real authentication."
-                    : (supabaseConfigError ??
-                      "Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the root `.env` file before using auth.")}
+                  {effectiveConfigError}
                 </div>
               )}
-            </form>
+            </div>
           </CardContent>
         </Card>
       </div>

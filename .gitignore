@@ -4,3 +4,11 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+.vercel
+.azure
+.env
+server-test-*.log
+
+.python_packages
+__pycache__
+.venv

@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/Auth";
-import AuthMfaPage from "@/pages/AuthMfa";
 
 import Dashboard from "@/pages/Dashboard";
 import DocumentDetail from "@/pages/DocumentDetail";
@@ -14,6 +13,8 @@ import Analytics from "@/pages/Analytics";
 import Settings from "@/pages/Settings";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+import { MsalProvider } from "@azure/msal-react";
+import { entraConfigError, entraMsalInstance } from "@/lib/entra";
 
 function Router() {
   return (
@@ -29,10 +30,16 @@ function Router() {
 }
 
 function App() {
+  if (!entraMsalInstance) {
+    return <AuthPage configError={entraConfigError} />;
+  }
+
   return (
-    <AuthProvider>
-      <AppShell />
-    </AuthProvider>
+    <MsalProvider instance={entraMsalInstance}>
+      <AuthProvider>
+        <AppShell />
+      </AuthProvider>
+    </MsalProvider>
   );
 }
 
@@ -41,7 +48,7 @@ function AppShell() {
     "--sidebar-width": "18rem",
     "--sidebar-width-icon": "4rem",
   } as React.CSSProperties;
-  const { isLoading, requiresMfa, user } = useAuth();
+  const { isLoading, user } = useAuth();
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -51,15 +58,13 @@ function AppShell() {
             <div className="pointer-events-none absolute inset-0 signal-grid opacity-[0.16]" />
             <div className="mesh-panel panel-outline rounded-[2rem] px-8 py-10 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
-                Supabase Auth
+                Microsoft Entra ID
               </p>
               <p className="mt-3 text-lg font-semibold text-foreground">
                 Restoring your session...
               </p>
             </div>
           </div>
-        ) : user && requiresMfa ? (
-          <AuthMfaPage />
         ) : user ? (
           <SidebarProvider style={style}>
             <div className="relative flex h-screen w-full overflow-hidden">

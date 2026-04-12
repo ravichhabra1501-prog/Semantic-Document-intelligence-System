@@ -1,5 +1,5 @@
 import { getApiCredentialsMode, resolveApiUrl } from "@/lib/api";
-import { getSupabaseAuthHeaders } from "@/lib/supabase";
+import { getEntraAuthHeaders } from "@/lib/entra";
 import {
     api,
     buildUrl
@@ -44,7 +44,7 @@ export function useDocuments(query?: string) {
         window.location.origin,
       );
       if (query) url.searchParams.set("query", query);
-      const authHeaders = await getSupabaseAuthHeaders();
+      const authHeaders = await getEntraAuthHeaders();
 
       const res = await fetch(url.toString(), {
         credentials: getApiCredentialsMode(),
@@ -67,7 +67,7 @@ export function useDocument(id: number) {
     queryKey: [api.documents.get.path, id],
     queryFn: async () => {
       const url = resolveApiUrl(buildUrl(api.documents.get.path, { id }));
-      const authHeaders = await getSupabaseAuthHeaders();
+      const authHeaders = await getEntraAuthHeaders();
       const res = await fetch(url, {
         credentials: getApiCredentialsMode(),
         headers: authHeaders,
@@ -99,7 +99,7 @@ export function useUploadDocument() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      const authHeaders = await getSupabaseAuthHeaders();
+      const authHeaders = await getEntraAuthHeaders();
 
       const res = await fetch(resolveApiUrl(api.documents.upload.path), {
         method: api.documents.upload.method,
@@ -132,7 +132,7 @@ export function useDeleteDocument() {
   return useMutation({
     mutationFn: async (id: number) => {
       const url = resolveApiUrl(buildUrl(api.documents.delete.path, { id }));
-      const authHeaders = await getSupabaseAuthHeaders();
+      const authHeaders = await getEntraAuthHeaders();
       const res = await fetch(url, {
         method: api.documents.delete.method,
         headers: authHeaders,

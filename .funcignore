@@ -1,0 +1,16 @@
+.git
+.github
+.azure
+.vercel
+.venv
+.env
+.env.*
+client
+python_app
+python_pages
+script
+server/*.py
+server-test-*.log
+shared
+node_modules/.cache
+README.md
