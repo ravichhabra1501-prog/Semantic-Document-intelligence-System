@@ -1,170 +1,102 @@
-import {
-  PublicClientApplication,
-  type AccountInfo,
-  type AuthenticationResult,
-  type PopupRequest,
-} from "@azure/msal-browser";
+import { createClient } from "@/lib/client";
 
-function trimEnv(value?: string) {
-  return value?.trim() || "";
-}
+const defaultSupabaseAuthorizeUrl =
+  "https://yrqtudqlazoozqbjvwgk.supabase.co/auth/v1/oauth/authorize";
 
-const tenantId = trimEnv(import.meta.env.VITE_ENTRA_TENANT_ID);
-const clientId = trimEnv(import.meta.env.VITE_ENTRA_CLIENT_ID);
-const authority =
-  trimEnv(import.meta.env.VITE_ENTRA_AUTHORITY) ||
-  (tenantId ? `https://login.microsoftonline.com/${tenantId}` : "");
-const apiScope =
-  trimEnv(import.meta.env.VITE_ENTRA_API_SCOPE) ||
-  (clientId ? `api://${clientId}/access_as_user` : "");
+const supabaseAuthorizeUrl =
+  (import.meta.env.VITE_SUPABASE_AUTH_ENDPOINT as string | undefined)?.trim() ||
+  defaultSupabaseAuthorizeUrl;
 
-export const entraConfigError = !tenantId
-  ? "Missing VITE_ENTRA_TENANT_ID in .env."
-  : !clientId
-    ? "Missing VITE_ENTRA_CLIENT_ID in .env."
-    : !authority
-      ? "Microsoft Entra authority could not be determined."
-      : !apiScope
-        ? "Missing VITE_ENTRA_API_SCOPE in .env."
-        : null;
+const supabaseOAuthProvider =
+  (
+    import.meta.env.VITE_SUPABASE_OAUTH_PROVIDER as string | undefined
+  )?.trim() || "azure";
 
-export const isEntraConfigured = !entraConfigError;
+const supabase = createClient();
 
-const msalConfig = isEntraConfigured
-  ? {
-      auth: {
-        clientId,
-        authority,
-        redirectUri: window.location.origin,
-        postLogoutRedirectUri: window.location.origin,
-      },
-      cache: {
-        cacheLocation: "localStorage" as const,
-        storeAuthStateInCookie: false,
-      },
-    }
-  : null;
+export const isEntraConfigured =
+  Boolean((import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim()) &&
+  Boolean(
+    (
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
+    )?.trim(),
+  );
 
-export const loginRequest: PopupRequest | null = apiScope
-  ? {
-      scopes: [apiScope],
-    }
-  : null;
+export const entraConfigError: string | null = isEntraConfigured
+  ? null
+  : "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY in .env.";
 
-export const entraMsalInstance = msalConfig
-  ? new PublicClientApplication(msalConfig)
-  : null;
+export const loginRequest = {
+  endpoint: supabaseAuthorizeUrl,
+  provider: supabaseOAuthProvider,
+};
 
-export function getSignedInUser(account: AccountInfo | null | undefined) {
-  if (!account) {
+export const entraMsalInstance = null;
+
+export function getSignedInUser(user?: {
+  id?: string;
+  email?: string;
+  user_metadata?: { full_name?: string; name?: string };
+}) {
+  if (!user) {
     return null;
   }
 
   return {
-    id: account.homeAccountId,
-    email: account.username || account.name || "unknown@local",
-    name: account.name ?? null,
-    tenantId: account.tenantId ?? null,
+    id: user.id ?? "",
+    email: user.email ?? "unknown@local",
+    name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? null,
+    tenantId: null,
   };
 }
 
-export function getActiveAccount(): AccountInfo | null {
-  if (!entraMsalInstance) {
-    return null;
+export async function getEntraAuthHeaders(): Promise<Record<string, string>> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    return {};
   }
 
-  return entraMsalInstance.getActiveAccount() ?? entraMsalInstance.getAllAccounts()[0] ?? null;
+  return {
+    Authorization: `Bearer ${session.access_token}`,
+  };
+}
+
+export async function getActiveAccount() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  return user ?? null;
 }
 
 export async function initializeEntraAuth() {
-  if (!entraMsalInstance) {
-    return null;
-  }
-
-  await entraMsalInstance.initialize();
-
-  const redirectResult = await entraMsalInstance.handleRedirectPromise();
-  if (redirectResult?.account) {
-    entraMsalInstance.setActiveAccount(redirectResult.account);
-  }
-
-  const activeAccount = getActiveAccount();
-  if (activeAccount) {
-    entraMsalInstance.setActiveAccount(activeAccount);
-  }
-
-  return activeAccount;
+  return getActiveAccount();
 }
 
 export async function signInWithEntra() {
-  if (!entraMsalInstance || !loginRequest) {
-    throw new Error(
-      entraConfigError ?? "Microsoft Entra authentication is not configured.",
-    );
+  if (entraConfigError) {
+    throw new Error(entraConfigError);
   }
 
-  const result = await entraMsalInstance.loginPopup(loginRequest);
-  if (result.account) {
-    entraMsalInstance.setActiveAccount(result.account);
+  const url = new URL(supabaseAuthorizeUrl);
+
+  if (!url.searchParams.get("provider")) {
+    url.searchParams.set("provider", supabaseOAuthProvider);
   }
 
-  return result;
+  if (!url.searchParams.get("redirect_to")) {
+    url.searchParams.set("redirect_to", window.location.origin);
+  }
+
+  window.location.assign(url.toString());
 }
 
 export async function signOutFromEntra() {
-  if (!entraMsalInstance) {
-    return;
-  }
-
-  const account = getActiveAccount();
-  if (account) {
-    entraMsalInstance.setActiveAccount(account);
-  }
-
-  await entraMsalInstance.logoutPopup({
-    account: account ?? undefined,
-    postLogoutRedirectUri: window.location.origin,
-  });
-}
-
-async function getAccessToken(): Promise<string | null> {
-  if (!entraMsalInstance || !loginRequest) {
-    return null;
-  }
-
-  const account = getActiveAccount();
-  if (!account) {
-    return null;
-  }
-
-  try {
-    const result: AuthenticationResult =
-      await entraMsalInstance.acquireTokenSilent({
-        ...loginRequest,
-        account,
-      });
-    return result.accessToken;
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "name" in error &&
-      ((error as { name?: string }).name === "InteractionRequiredAuthError" ||
-        (error as { name?: string }).name === "BrowserAuthError")
-    ) {
-      return null;
-    }
-
+  const { error } = await supabase.auth.signOut();
+  if (error) {
     throw error;
   }
-}
-
-export async function getEntraAuthHeaders(): Promise<Record<string, string>> {
-  const accessToken = await getAccessToken();
-
-  return accessToken
-    ? {
-        Authorization: `Bearer ${accessToken}`,
-      }
-    : {};
 }

@@ -1,20 +1,18 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import NotFound from "@/pages/not-found";
-import AuthPage from "@/pages/Auth";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Route, Switch } from "wouter";
+import { queryClient } from "./lib/queryClient";
 
+import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import Analytics from "@/pages/Analytics";
+import AuthPage from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import DocumentDetail from "@/pages/DocumentDetail";
-import Analytics from "@/pages/Analytics";
 import Settings from "@/pages/Settings";
-import { AppSidebar } from "@/components/layout/AppSidebar";
-import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
-import { MsalProvider } from "@azure/msal-react";
-import { entraConfigError, entraMsalInstance } from "@/lib/entra";
 
 function Router() {
   return (
@@ -30,16 +28,10 @@ function Router() {
 }
 
 function App() {
-  if (!entraMsalInstance) {
-    return <AuthPage configError={entraConfigError} />;
-  }
-
   return (
-    <MsalProvider instance={entraMsalInstance}>
-      <AuthProvider>
-        <AppShell />
-      </AuthProvider>
-    </MsalProvider>
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   );
 }
 
@@ -58,10 +50,10 @@ function AppShell() {
             <div className="pointer-events-none absolute inset-0 signal-grid opacity-[0.16]" />
             <div className="mesh-panel panel-outline rounded-[2rem] px-8 py-10 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
-                Microsoft Entra ID
+                Workspace
               </p>
               <p className="mt-3 text-lg font-semibold text-foreground">
-                Restoring your session...
+                Loading your workspace...
               </p>
             </div>
           </div>

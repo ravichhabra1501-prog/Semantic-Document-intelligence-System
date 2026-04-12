@@ -1,26 +1,21 @@
-import { EventType, type AccountInfo } from "@azure/msal-browser";
-import { useMsal } from "@azure/msal-react";
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type PropsWithChildren,
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+    type PropsWithChildren,
 } from "react";
 
-import {
-  entraMsalInstance,
-  getSignedInUser,
-  initializeEntraAuth,
-} from "@/lib/entra";
+import { createClient } from "@/lib/client";
+import { getSignedInUser } from "@/lib/entra";
 
 type AuthUser = {
   email: string;
   id: string;
   name: string | null;
   tenantId: string | null;
-  account: AccountInfo;
 };
 
 type AuthContextValue = {
@@ -32,93 +27,59 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const { instance, accounts } = useMsal();
-  const [account, setAccount] = useState<AccountInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
-  const refreshAuthState = async () => {
-    if (!entraMsalInstance) {
-      setAccount(null);
-      setIsLoading(false);
+  const supabase = useMemo(() => createClient(), []);
+
+  const refreshAuthState = useCallback(async () => {
+    const {
+      data: { user: supabaseUser },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error) {
+      setUser(null);
       return;
     }
 
-    await initializeEntraAuth();
-
-    const activeAccount =
-      entraMsalInstance.getActiveAccount() ??
-      entraMsalInstance.getAllAccounts()[0] ??
-      null;
-
-    if (activeAccount) {
-      entraMsalInstance.setActiveAccount(activeAccount);
-    }
-
-    setAccount(activeAccount);
-    setIsLoading(false);
-  };
+    setUser(getSignedInUser(supabaseUser));
+  }, [supabase]);
 
   useEffect(() => {
-    if (!entraMsalInstance) {
-      setIsLoading(false);
-      return;
-    }
-
     let isMounted = true;
 
-    refreshAuthState().catch((error) => {
-      if (isMounted) {
-        console.error("Failed to refresh Entra auth state", error);
-        setIsLoading(false);
+    const bootstrapAuth = async () => {
+      try {
+        await refreshAuthState();
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-    });
+    };
 
-    const callbackId = instance.addEventCallback((event) => {
-      if (
-        !isMounted ||
-        !event ||
-        ![EventType.LOGIN_SUCCESS, EventType.LOGOUT_SUCCESS, EventType.ACCOUNT_ADDED, EventType.ACCOUNT_REMOVED].includes(
-          event.eventType,
-        )
-      ) {
-        return;
-      }
+    bootstrapAuth();
 
-      refreshAuthState().catch((error) => {
-        console.error("Failed to refresh Entra auth state", error);
-        setIsLoading(false);
-      });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      refreshAuthState();
     });
 
     return () => {
       isMounted = false;
-      if (callbackId) {
-        instance.removeEventCallback(callbackId);
-      }
+      subscription.unsubscribe();
     };
-  }, [instance]);
-
-  useEffect(() => {
-    if (!entraMsalInstance || accounts.length === 0) {
-      return;
-    }
-
-    const nextAccount =
-      entraMsalInstance.getActiveAccount() ?? accounts[0] ?? null;
-
-    if (nextAccount) {
-      entraMsalInstance.setActiveAccount(nextAccount);
-      setAccount(nextAccount);
-    }
-  }, [accounts]);
+  }, [refreshAuthState, supabase]);
 
   const value = useMemo(
     () => ({
       isLoading,
       refreshAuthState,
-      user: account ? { ...getSignedInUser(account), account } : null,
+      user,
     }),
-    [account, isLoading],
+    [isLoading, refreshAuthState, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

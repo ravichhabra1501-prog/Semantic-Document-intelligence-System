@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { entraConfigError, signInWithEntra } from "@/lib/entra";
@@ -26,13 +26,13 @@ export default function AuthPage({ configError }: AuthPageProps) {
       await signInWithEntra();
       toast({
         title: "Signed in",
-        description: "Microsoft Entra ID granted access to the workspace.",
+        description: "Redirecting to Supabase OAuth authorization.",
       });
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "Unable to sign in with Microsoft Entra ID.";
+          : "Unable to start Supabase OAuth sign in.";
 
       toast({
         title: "Sign-in failed",
@@ -56,7 +56,7 @@ export default function AuthPage({ configError }: AuthPageProps) {
         <div className="mesh-panel panel-outline rounded-[2rem] p-8 lg:p-10">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Microsoft Entra ID
+            Supabase Auth
           </div>
 
           <h1 className="mt-6 max-w-2xl text-4xl font-semibold leading-tight text-foreground lg:text-6xl">
@@ -68,27 +68,27 @@ export default function AuthPage({ configError }: AuthPageProps) {
           </h1>
 
           <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground lg:text-base">
-            Sign in with your Microsoft work or school account. Access tokens
-            from Entra ID are sent to the API, and tenant policies control MFA
-            and conditional access.
+            Sign in with your configured OAuth provider. Access tokens are sent
+            to the API so protected endpoints are accessible only for
+            authenticated sessions.
           </p>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
             {[
               {
-                title: "Tenant policies",
+                title: "Secure sessions",
                 description:
-                  "MFA, device compliance, and conditional access live in Entra, not in the app.",
+                  "OAuth and MFA policies are handled by your identity provider.",
               },
               {
                 title: "Token-based API",
                 description:
-                  "The frontend obtains an access token for the API scope and sends it with requests.",
+                  "The frontend obtains an access token and sends it with API requests.",
               },
               {
                 title: "Fast session restore",
                 description:
-                  "The app keeps the Microsoft session in local storage for quick reloads.",
+                  "The app restores your auth session automatically after reload.",
               },
             ].map((item) => (
               <div
@@ -113,7 +113,7 @@ export default function AuthPage({ configError }: AuthPageProps) {
             </div>
             <CardTitle>Sign in to Doc Intel</CardTitle>
             <CardDescription>
-              Use Microsoft Entra ID to access the workspace.
+              Use Supabase OAuth to access the workspace.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -130,13 +130,13 @@ export default function AuthPage({ configError }: AuthPageProps) {
                     Redirecting...
                   </>
                 ) : (
-                  "Sign in with Microsoft"
+                  "Sign in"
                 )}
               </Button>
 
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-muted-foreground">
-                The app expects a Microsoft Entra tenant, a SPA client
-                registration, and an exposed API scope.
+                The app expects a valid Supabase project URL, publishable key,
+                and OAuth provider configuration.
               </div>
 
               {effectiveConfigError && (

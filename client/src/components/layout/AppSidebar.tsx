@@ -1,5 +1,4 @@
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Button } from "@/components/ui/button";
 import {
     Sidebar,
     SidebarContent,
@@ -12,25 +11,19 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { toast } from "@/hooks/use-toast";
-import { signOutFromEntra } from "@/lib/entra";
 import {
     Activity,
     ChevronRight,
     FileText,
     LayoutDashboard,
-    LoaderCircle,
-    LogOut,
     PieChart,
     Settings,
 } from "lucide-react";
-import { useState } from "react";
 import { Link, useLocation } from "wouter";
 
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
-  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const navigation = [
     {
@@ -58,29 +51,6 @@ export function AppSidebar() {
       caption: "Preferences",
     },
   ];
-
-  const handleSignOut = async () => {
-    setIsSigningOut(true);
-
-    try {
-      await signOutFromEntra();
-      toast({
-        title: "Signed out",
-        description: "You have been signed out successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Unable to sign out",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Sign-out failed unexpectedly.",
-        variant: "destructive",
-      });
-    }
-
-    setIsSigningOut(false);
-  };
 
   return (
     <Sidebar className="border-r border-white/10 bg-[linear-gradient(180deg,rgba(10,15,26,0.96),rgba(7,11,19,0.92))] backdrop-blur-xl">
@@ -192,30 +162,14 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-white/10 p-4">
         <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
           <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-            Signed in as
+            Workspace user
           </p>
           <p className="mt-2 truncate text-sm font-medium text-foreground">
             {user?.email ?? "Unknown user"}
           </p>
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-4 w-full rounded-xl border-white/10 bg-black/10 text-foreground hover:bg-white/[0.05]"
-            onClick={handleSignOut}
-            disabled={isSigningOut}
-          >
-            {isSigningOut ? (
-              <>
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-                Signing out...
-              </>
-            ) : (
-              <>
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </>
-            )}
-          </Button>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Local mode is active. Authentication is disabled.
+          </p>
         </div>
       </SidebarFooter>
     </Sidebar>
