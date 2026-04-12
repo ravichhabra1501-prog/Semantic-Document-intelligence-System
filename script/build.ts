@@ -1,6 +1,6 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, writeFile } from "fs/promises";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -74,6 +74,12 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  // Some platforms only inspect the configured output directory for
+  // Node entrypoints, so create shims in dist/public that forward to
+  // the actual server bundles in dist/.
+  await writeFile("dist/public/index.cjs", 'module.exports = require("../index.cjs");\n');
+  await writeFile("dist/public/app.cjs", 'module.exports = require("../app.cjs");\n');
 }
 
 buildAll().catch((err) => {
