@@ -1,9 +1,30 @@
 import { createClient } from "@/lib/client";
 
-const defaultSupabaseAuthorizeUrl =
-  "https://yrqtudqlazoozqbjvwgk.supabase.co/auth/v1/authorize";
-const defaultSupabaseTokenUrl =
-  "https://yrqtudqlazoozqbjvwgk.supabase.co/auth/v1/token";
+const defaultSupabaseProjectUrl = "https://yrqtudqlazoozqbjvwgk.supabase.co";
+
+const supabaseProjectUrl =
+  (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() || "";
+
+function buildSupabaseEndpoint(pathname: string, fallback: string) {
+  if (!supabaseProjectUrl) {
+    return fallback;
+  }
+
+  try {
+    return new URL(pathname, supabaseProjectUrl).toString();
+  } catch {
+    return fallback;
+  }
+}
+
+const defaultSupabaseAuthorizeUrl = buildSupabaseEndpoint(
+  "/auth/v1/authorize",
+  `${defaultSupabaseProjectUrl}/auth/v1/authorize`,
+);
+const defaultSupabaseTokenUrl = buildSupabaseEndpoint(
+  "/auth/v1/token",
+  `${defaultSupabaseProjectUrl}/auth/v1/token`,
+);
 
 const supabaseAuthorizeUrl =
   (import.meta.env.VITE_SUPABASE_AUTH_ENDPOINT as string | undefined)?.trim() ||
@@ -29,8 +50,6 @@ function isValidUrl(value: string) {
   }
 }
 
-const supabaseProjectUrl =
-  (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() || "";
 const supabasePublishableKey =
   (
     import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
