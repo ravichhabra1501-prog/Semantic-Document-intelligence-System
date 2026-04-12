@@ -1,6 +1,6 @@
 import { build as esbuild } from "esbuild";
+import { readFile, rm, writeFile } from "fs/promises";
 import { build as viteBuild } from "vite";
-import { rm, readFile, writeFile } from "fs/promises";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -60,7 +60,7 @@ async function buildAll() {
     logLevel: "info",
   });
 
-  console.log("building Azure Functions app bundle...");
+  console.log("building function app bundle...");
   await esbuild({
     entryPoints: ["server/app.ts"],
     platform: "node",
@@ -78,8 +78,14 @@ async function buildAll() {
   // Some platforms only inspect the configured output directory for
   // Node entrypoints, so create shims in dist/public that forward to
   // the actual server bundles in dist/.
-  await writeFile("dist/public/index.cjs", 'module.exports = require("../index.cjs");\n');
-  await writeFile("dist/public/app.cjs", 'module.exports = require("../app.cjs");\n');
+  await writeFile(
+    "dist/public/index.cjs",
+    'module.exports = require("../index.cjs");\n',
+  );
+  await writeFile(
+    "dist/public/app.cjs",
+    'module.exports = require("../app.cjs");\n',
+  );
 }
 
 buildAll().catch((err) => {

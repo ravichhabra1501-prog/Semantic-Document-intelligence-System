@@ -1,5 +1,5 @@
 import { getApiCredentialsMode, resolveApiUrl } from "@/lib/api";
-import { getEntraAuthHeaders } from "@/lib/entra";
+import { getAuthHeaders } from "@/lib/auth";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
@@ -14,7 +14,7 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const authHeaders = await getEntraAuthHeaders();
+  const authHeaders = await getAuthHeaders();
   const res = await fetch(resolveApiUrl(url), {
     method,
     headers: {
@@ -35,7 +35,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const authHeaders = await getEntraAuthHeaders();
+    const authHeaders = await getAuthHeaders();
     const res = await fetch(resolveApiUrl(queryKey.join("/") as string), {
       headers: authHeaders,
       credentials: getApiCredentialsMode(),

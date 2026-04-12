@@ -40,7 +40,7 @@ async function getApp() {
   return appPromise;
 }
 
-module.exports = async function azureFunctionHandler(context, req) {
+module.exports = async function functionHandler(context, req) {
   const app = await getApp();
   const response = await app.inject({
     method: (req.method || "GET").toUpperCase(),

@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { signOutFromEntra } from "@/lib/entra";
+import { signOut } from "@/lib/auth";
 import { Building2, LoaderCircle, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
@@ -15,18 +15,16 @@ export function MfaSettingsCard() {
     setIsSigningOut(true);
 
     try {
-      await signOutFromEntra();
+      await signOut();
       toast({
         title: "Signed out",
-        description: "Microsoft Entra session ended.",
+        description: "Session ended.",
       });
     } catch (error) {
       toast({
         title: "Unable to sign out",
         description:
-          error instanceof Error
-            ? error.message
-            : "Could not sign out of Microsoft Entra ID.",
+          error instanceof Error ? error.message : "Could not sign out.",
         variant: "destructive",
       });
     } finally {
@@ -39,7 +37,7 @@ export function MfaSettingsCard() {
       <CardHeader className="pb-4 border-b border-border/50 bg-secondary/30">
         <CardTitle className="text-base flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-500" />
-          Microsoft Entra ID
+          Authentication
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5 p-5">
@@ -49,11 +47,10 @@ export function MfaSettingsCard() {
               Identity provider
             </p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Authentication is managed by your Microsoft tenant. MFA and
-              conditional access are enforced there, not in the app.
+              Authentication is managed by your configured OAuth provider.
             </p>
           </div>
-          <Badge variant="secondary">Entra connected</Badge>
+          <Badge variant="secondary">Connected</Badge>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -85,7 +82,7 @@ export function MfaSettingsCard() {
               Signing out...
             </>
           ) : (
-            "Sign out of Microsoft"
+            "Sign out"
           )}
         </Button>
       </CardContent>

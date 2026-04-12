@@ -7,7 +7,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { entraConfigError, signInWithEntra } from "@/lib/entra";
+import { authConfigError, signIn } from "@/lib/auth";
 import { LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 import { useState } from "react";
 
@@ -23,7 +23,7 @@ export default function AuthPage({ configError }: AuthPageProps) {
     setIsSubmitting(true);
 
     try {
-      await signInWithEntra();
+      await signIn();
       toast({
         title: "Signed in",
         description: "Redirecting to Supabase OAuth authorization.",
@@ -44,7 +44,7 @@ export default function AuthPage({ configError }: AuthPageProps) {
     }
   };
 
-  const effectiveConfigError = configError ?? entraConfigError;
+  const effectiveConfigError = configError ?? authConfigError;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-16 lg:px-10">
@@ -134,10 +134,16 @@ export default function AuthPage({ configError }: AuthPageProps) {
                 )}
               </Button>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-muted-foreground">
-                The app expects a valid Supabase project URL, publishable key,
-                and OAuth provider configuration.
-              </div>
+              {effectiveConfigError ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-muted-foreground">
+                  The app expects a valid Supabase project URL, publishable key,
+                  and OAuth provider configuration.
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm leading-6 text-emerald-100">
+                  Supabase OAuth configuration detected. You can sign in now.
+                </div>
+              )}
 
               {effectiveConfigError && (
                 <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">

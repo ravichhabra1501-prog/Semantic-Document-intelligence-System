@@ -8,8 +8,8 @@ import {
     type PropsWithChildren,
 } from "react";
 
+import { getSignedInUser } from "@/lib/auth";
 import { createClient } from "@/lib/client";
-import { getSignedInUser } from "@/lib/entra";
 
 type AuthUser = {
   email: string;
