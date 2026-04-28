@@ -6,33 +6,50 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { authConfigError, signIn } from "@/lib/auth";
+import {
+    authConfigError,
+    signInWithEmailPassword,
+} from "@/lib/auth";
 import { LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 type AuthPageProps = {
   configError?: string | null;
 };
 
 export default function AuthPage({ configError }: AuthPageProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
   const { toast } = useToast();
+  const { refreshAuthState } = useAuth();
 
-  const handleSignIn = async () => {
-    setIsSubmitting(true);
+  const handlePasswordSignIn = async () => {
+    setIsPasswordSubmitting(true);
 
     try {
-      await signIn();
+      const result = await signInWithEmailPassword(email, password);
+      await refreshAuthState();
       toast({
-        title: "Signed in",
-        description: "Redirecting to Supabase OAuth authorization.",
+        title: result.requiresEmailConfirmation
+          ? "Check your inbox"
+          : result.createdAccount
+            ? "Account created"
+            : "Signed in",
+        description: result.requiresEmailConfirmation
+          ? "Your account was created. Confirm the email from Supabase before signing in."
+          : result.createdAccount
+            ? "Your workspace account is ready."
+            : "Welcome back.",
       });
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "Unable to start Supabase OAuth sign in.";
+          : "Unable to sign in with email and password.";
 
       toast({
         title: "Sign-in failed",
@@ -40,7 +57,7 @@ export default function AuthPage({ configError }: AuthPageProps) {
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsPasswordSubmitting(false);
     }
   };
 
@@ -68,9 +85,9 @@ export default function AuthPage({ configError }: AuthPageProps) {
           </h1>
 
           <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground lg:text-base">
-            Sign in with your configured OAuth provider. Access tokens are sent
-            to the API so protected endpoints are accessible only for
-            authenticated sessions.
+            Sign in with your email and password. Access tokens are sent to the
+            API so protected endpoints are accessible only for authenticated
+            sessions.
           </p>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
@@ -78,7 +95,7 @@ export default function AuthPage({ configError }: AuthPageProps) {
               {
                 title: "Secure sessions",
                 description:
-                  "OAuth and MFA policies are handled by your identity provider.",
+                  "Email/password authentication is handled by Supabase with secure session tokens.",
               },
               {
                 title: "Token-based API",
@@ -113,35 +130,57 @@ export default function AuthPage({ configError }: AuthPageProps) {
             </div>
             <CardTitle>Sign in to Doc Intel</CardTitle>
             <CardDescription>
-              Use Supabase OAuth to access the workspace.
+              Use your email and password to sign in.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-5">
-              <Button
-                type="button"
-                className="h-11 w-full rounded-xl font-semibold"
-                onClick={handleSignIn}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                    Redirecting...
-                  </>
-                ) : (
-                  "Sign in"
-                )}
-              </Button>
+              <div className="space-y-3">
+                <Input
+                  type="email"
+                  placeholder="you@gmail.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                  disabled={isPasswordSubmitting}
+                />
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  disabled={isPasswordSubmitting}
+                />
+                <Button
+                  type="button"
+                  className="h-11 w-full rounded-xl font-semibold"
+                  onClick={handlePasswordSignIn}
+                  disabled={
+                    Boolean(effectiveConfigError) ||
+                    isPasswordSubmitting
+                  }
+                >
+                  {isPasswordSubmitting ? (
+                    <>
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      Continuing...
+                    </>
+                  ) : (
+                    "Sign in"
+                  )}
+                </Button>
+              </div>
 
               {effectiveConfigError ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-muted-foreground">
-                  The app expects a valid Supabase project URL, publishable key,
-                  and OAuth provider configuration.
+                  The app expects a valid Supabase project URL and publishable
+                  key.
                 </div>
               ) : (
                 <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm leading-6 text-emerald-100">
-                  Supabase OAuth configuration detected. You can sign in now.
+                  Supabase authentication configuration detected. You can sign
+                  in now.
                 </div>
               )}
 

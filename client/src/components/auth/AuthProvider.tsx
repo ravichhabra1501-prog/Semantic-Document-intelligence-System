@@ -8,7 +8,7 @@ import {
     type PropsWithChildren,
 } from "react";
 
-import { getSignedInUser } from "@/lib/auth";
+import { getLocalAuthUser, getSignedInUser } from "@/lib/auth";
 import { createClient } from "@/lib/client";
 
 type AuthUser = {
@@ -24,13 +24,6 @@ type AuthContextValue = {
   user: AuthUser | null;
 };
 
-const localDevUser: AuthUser = {
-  email: "local@workspace",
-  id: "local-user",
-  name: "Local User",
-  tenantId: null,
-};
-
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -40,18 +33,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const supabase = useMemo(() => createClient(), []);
 
   const refreshAuthState = useCallback(async () => {
+    const localUser = getLocalAuthUser();
+    if (localUser) {
+      setUser(localUser);
+      return;
+    }
+
     const {
       data: { user: supabaseUser },
       error,
     } = await supabase.auth.getUser();
 
     if (error) {
-      setUser(import.meta.env.DEV ? localDevUser : null);
+      setUser(null);
       return;
     }
 
-    const nextUser = getSignedInUser(supabaseUser);
-    setUser(nextUser ?? (import.meta.env.DEV ? localDevUser : null));
+    setUser(getSignedInUser(supabaseUser));
   }, [supabase]);
 
   useEffect(() => {

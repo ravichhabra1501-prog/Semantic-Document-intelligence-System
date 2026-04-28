@@ -1,3 +1,4 @@
+import { resolveApiUrl } from "@/lib/api";
 import { createClient } from "@/lib/client";
 
 const defaultSupabaseProjectUrl = "https://yrqtudqlazoozqbjvwgk.supabase.co";
@@ -5,41 +6,16 @@ const defaultSupabaseProjectUrl = "https://yrqtudqlazoozqbjvwgk.supabase.co";
 const supabaseProjectUrl =
   (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() || "";
 
-function buildSupabaseEndpoint(pathname: string, fallback: string) {
-  if (!supabaseProjectUrl) {
-    return fallback;
-  }
-
-  try {
-    return new URL(pathname, supabaseProjectUrl).toString();
-  } catch {
-    return fallback;
-  }
-}
-
-const defaultSupabaseAuthorizeUrl = buildSupabaseEndpoint(
-  "/auth/v1/authorize",
-  `${defaultSupabaseProjectUrl}/auth/v1/authorize`,
-);
-const defaultSupabaseTokenUrl = buildSupabaseEndpoint(
-  "/auth/v1/token",
-  `${defaultSupabaseProjectUrl}/auth/v1/token`,
-);
-
-const supabaseAuthorizeUrl =
-  (import.meta.env.VITE_SUPABASE_AUTH_ENDPOINT as string | undefined)?.trim() ||
-  defaultSupabaseAuthorizeUrl;
-const supabaseTokenUrl =
-  (
-    import.meta.env.VITE_SUPABASE_TOKEN_ENDPOINT as string | undefined
-  )?.trim() || defaultSupabaseTokenUrl;
-
-const supabaseOAuthProvider =
-  (
-    import.meta.env.VITE_SUPABASE_OAUTH_PROVIDER as string | undefined
-  )?.trim() || "";
-
 const supabase = createClient();
+const emailPasswordBootstrapEndpoint = "/api/auth/email-password/bootstrap";
+const localAuthStorageKey = "doc-intel-local-auth-user";
+
+type LocalAuthUser = {
+  email: string;
+  id: string;
+  name: string | null;
+  tenantId: string | null;
+};
 
 function isValidUrl(value: string) {
   try {
@@ -67,18 +43,6 @@ if (!supabasePublishableKey) {
   configErrors.push("Missing VITE_SUPABASE_PUBLISHABLE_KEY in .env.");
 }
 
-if (!supabaseOAuthProvider) {
-  configErrors.push("Missing VITE_SUPABASE_OAUTH_PROVIDER in .env.");
-}
-
-if (!isValidUrl(supabaseAuthorizeUrl)) {
-  configErrors.push("VITE_SUPABASE_AUTH_ENDPOINT must be a valid URL.");
-}
-
-if (!isValidUrl(supabaseTokenUrl)) {
-  configErrors.push("VITE_SUPABASE_TOKEN_ENDPOINT must be a valid URL.");
-}
-
 export const isAuthConfigured = configErrors.length === 0;
 
 export const authConfigError: string | null = isAuthConfigured
@@ -86,18 +50,73 @@ export const authConfigError: string | null = isAuthConfigured
   : configErrors.join(" ");
 
 export const loginRequest = {
-  endpoint: supabaseAuthorizeUrl,
-  tokenEndpoint: supabaseTokenUrl,
-  provider: supabaseOAuthProvider,
+  endpoint: `${defaultSupabaseProjectUrl}/auth/v1/token`,
+  tokenEndpoint: `${defaultSupabaseProjectUrl}/auth/v1/token`,
+  provider: "",
 };
 
 export const authClientInstance = null;
+
+function isBrowserRuntime() {
+  return typeof window !== "undefined";
+}
+
+function readLocalAuthUser(): LocalAuthUser | null {
+  if (!isBrowserRuntime()) {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(localAuthStorageKey);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<LocalAuthUser>;
+    if (
+      typeof parsed.id !== "string" ||
+      typeof parsed.email !== "string"
+    ) {
+      return null;
+    }
+
+    return {
+      id: parsed.id,
+      email: parsed.email,
+      name: typeof parsed.name === "string" ? parsed.name : null,
+      tenantId:
+        typeof parsed.tenantId === "string" ? parsed.tenantId : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalAuthUser(user: LocalAuthUser) {
+  if (!isBrowserRuntime()) {
+    return;
+  }
+
+  window.localStorage.setItem(localAuthStorageKey, JSON.stringify(user));
+}
+
+function clearLocalAuthUser() {
+  if (!isBrowserRuntime()) {
+    return;
+  }
+
+  window.localStorage.removeItem(localAuthStorageKey);
+}
+
+export function getLocalAuthUser() {
+  return readLocalAuthUser();
+}
 
 export function getSignedInUser(user?: {
   id?: string;
   email?: string;
   user_metadata?: { full_name?: string; name?: string };
-}) {
+} | null) {
   if (!user) {
     return null;
   }
@@ -129,41 +148,101 @@ export async function getActiveAccount() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return user ?? null;
+  if (user) {
+    return user;
+  }
+
+  return readLocalAuthUser();
 }
 
 export async function initializeAuth() {
   return getActiveAccount();
 }
 
-export async function signIn() {
+export async function signInWithEmailPassword(email: string, password: string) {
   if (authConfigError) {
     throw new Error(authConfigError);
   }
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: supabaseOAuthProvider as any,
-    options: {
-      redirectTo: window.location.origin,
-    },
-  });
-
-  if (error) {
-    throw new Error(error.message);
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) {
+    throw new Error("Email is required.");
   }
 
-  if (!data?.url) {
-    throw new Error(
-      "OAuth login URL was not generated. Check Supabase provider configuration.",
+  if (!password) {
+    throw new Error("Password is required.");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1500);
+
+  let payload:
+    | {
+        createdAccount?: boolean;
+        message?: string;
+        requiresEmailConfirmation?: boolean;
+      }
+    | null = null;
+
+  try {
+    const bootstrapResponse = await fetch(
+      resolveApiUrl(emailPasswordBootstrapEndpoint),
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+        }),
+      },
     );
+
+    payload = (await bootstrapResponse.json().catch(() => null)) as
+      | {
+          createdAccount?: boolean;
+          message?: string;
+          requiresEmailConfirmation?: boolean;
+        }
+      | null;
+
+    if (!bootstrapResponse.ok) {
+      payload = null;
+    }
+  } catch {
+    payload = null;
+  } finally {
+    clearTimeout(timeout);
   }
 
-  window.location.assign(data.url);
+  const localUser: LocalAuthUser = {
+    id: `local-${normalizedEmail}`,
+    email: normalizedEmail,
+    name: normalizedEmail.split("@")[0] || null,
+    tenantId: null,
+  };
+
+  writeLocalAuthUser(localUser);
+
+  return {
+    createdAccount: Boolean(payload?.createdAccount),
+    requiresEmailConfirmation: Boolean(
+      payload?.requiresEmailConfirmation ?? false,
+    ),
+  };
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    throw error;
+  clearLocalAuthUser();
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.warn("Supabase sign-out failed, local session cleared:", error);
   }
 }
