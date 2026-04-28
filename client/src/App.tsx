@@ -47,7 +47,7 @@ function AppShell() {
       <TooltipProvider>
         {isLoading ? (
           <div className="relative flex min-h-screen items-center justify-center overflow-hidden">
-            <div className="pointer-events-none absolute inset-0 signal-grid opacity-[0.16]" />
+            <div className="pointer-events-none absolute inset-0 signal-grid-slow opacity-[0.16]" />
             <div className="mesh-panel panel-outline rounded-[2rem] px-8 py-10 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
                 Workspace
